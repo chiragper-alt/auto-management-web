@@ -311,42 +311,23 @@
  const normHeader=x=>String(x??'').trim().toLowerCase().replace(/[\-_\/]+/g,' ').replace(/\s+/g,' ');
  function headerSignature(headers){return headers.map(normHeader).join('|');}
  function savedMappings(){try{return JSON.parse(localStorage.getItem('am_import_mappings_v2')||'{}')}catch(e){return{}}}
- function autoMapping(headers){const h=headers.map(normHeader),m={};for(const [key,d] of Object.entries(FIELD_DEFS)){let i=d.aliases.map(normHeader).map(a=>h.indexOf(a)).find(i=>i>=0);m[key]=i==null?-1:i;}return m;}
- function saveMapping(headers,m,applyToRecords=true){
- const sig=headerSignature(headers), all=savedMappings();
- all[sig]={headers:[...headers],mapping:{...m},updatedAt:new Date().toISOString()};
- localStorage.setItem('am_import_mappings_v2',JSON.stringify(all));
- if(applyToRecords) return applyMappingToExistingRecords(headers,m);
-}
-function applyMappingToExistingRecords(headers,mapping){
- try{
-  const rows=read(), sig=headerSignature(headers), protectedFields=new Set(['chassisNo','engineNo','vehicleModel']);
-  const sourceStore=(()=>{try{return JSON.parse(localStorage.getItem('am_import_sources_v1')||'{}')}catch(e){return{}}})();
-  const source=sourceStore[sig];
-  let changed=0;
-  const pick=(row,k)=>{const i=Number(mapping?.[k]??-1);return i>=0?String(row?.[i]??'').trim():''};
-  const next=rows.map(rec=>{
-   let raw=Array.isArray(rec?._importMeta?.row)?rec._importMeta.row:null;
-   if(!raw && source && Array.isArray(source.rows)){
-     const ck=String(rec.chassisNo||'').trim().toLowerCase();
-     const ci=Number(mapping?.chassisNo??-1);
-     if(ck && ci>=0) raw=source.rows.find(r=>String(r?.[ci]??'').trim().toLowerCase()===ck)||null;
+ function excelDateValue(key,raw){
+   if(raw===null||raw===undefined||raw==='') return '';
+   if(raw instanceof Date && !isNaN(raw)) return raw.toISOString().slice(0,10);
+   const v=String(raw).trim();
+   if(['purchaseDeliveryDate','insurancePolicyDate','hypothecationDate'].includes(key)){
+     const n=Number(v);
+     if(Number.isFinite(n) && n>=20000 && n<=70000){
+       const d=new Date(Date.UTC(1899,11,30)+n*86400000);
+       return isNaN(d)?v:d.toISOString().slice(0,10);
+     }
+     const m=v.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{2,4})$/);
+     if(m){let y=Number(m[3]);if(y<100)y+=2000;return `${y.toString().padStart(4,'0')}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;}
    }
-   if(!raw) return rec;
-   const patch={};
-   Object.keys(FIELD_DEFS).forEach(k=>{
-    if(protectedFields.has(k)) return;
-    const i=Number(mapping?.[k]??-1);
-    if(i>=0) patch[k]=pick(raw,k);
-   });
-   if(Object.keys(patch).length){changed++;return {...rec,...patch,updatedAt:new Date().toISOString(),updatedOn:date(new Date().toISOString())};}
-   return rec;
-  });
-  if(changed) write(next);
-  return changed;
- }catch(e){console.error('Mapping reapply failed',e);return 0;}
-}
-
+   return v;
+ }
+ function autoMapping(headers){const h=headers.map(normHeader),m={};for(const [key,d] of Object.entries(FIELD_DEFS)){let i=d.aliases.map(normHeader).map(a=>h.indexOf(a)).find(i=>i>=0);m[key]=i==null?-1:i;}return m;}
+ function saveMapping(headers,m){const all=savedMappings();const sig=headerSignature(headers);all[sig]={headers:[...headers],mapping:{...m},updatedAt:new Date().toISOString()};localStorage.setItem('am_import_mappings_v2',JSON.stringify(all));return all[sig];}
  function mappingModal(headers,initial,remember=true){return new Promise(resolve=>{
    const back=document.createElement('div');back.className='modal-backdrop open';back.style.zIndex='1200';
    const opts=['<option value="-1">— Do not import —</option>',...headers.map((h,i)=>`<option value="${i}">${esc(h||('Column '+(i+1)))}</option>`)].join('');
@@ -356,23 +337,57 @@ function applyMappingToExistingRecords(headers,mapping){
    back.querySelector('.close').onclick=()=>{back.remove();resolve(null)};
    back.querySelector('.confirm').onclick=()=>{const m={};back.querySelectorAll('.map-select').forEach(sel=>m[sel.dataset.field]=Number(sel.value));const bad=Object.entries(FIELD_DEFS).filter(([k,d])=>d.required&&m[k]<0);if(bad.length){window.__amNotify?.('Map required fields: '+bad.map(x=>x[1].label).join(', '));return}const cfg=(window.getImportSettings||window.Getimportsetting||(()=>({rememberMapping:true,autoApplyMapping:true})))(); if(back.querySelector('#rememberImportMap').checked && cfg.rememberMapping)saveMapping(headers,m); back.remove();resolve(m)};
  });}
+ function buildRecordFromSource(row,headers,mapping,existingRecord){
+   const rec={...(existingRecord||{})};
+   Object.keys(FIELD_DEFS).forEach(k=>{
+     const i=Number(mapping[k]);
+     if(i>=0) rec[k]=excelDateValue(k,row[i]??'');
+     else if(!existingRecord) rec[k]='';
+   });
+   rec.__importSource={signature:headerSignature(headers),headers:[...headers],row:Array.from(row||[])};
+   return rec;
+ }
  function rowsToRecords(rows,headers,mapping){
-   const pick=(r,k)=>{const i=mapping[k];return i>=0?String(r[i]??'').trim():''};
-   const existing=new Set(read().map(r=>String(r.chassisNo||'').trim().toLowerCase()).filter(Boolean));
-   let imported=0,duplicates=0,invalid=0;const errors=[];
+   const existingRows=read(),existingByChassis=new Map(existingRows.map(r=>[String(r.chassisNo||'').trim().toLowerCase(),r]).filter(([k])=>k));
+   let imported=0,duplicates=0,updated=0,invalid=0;const errors=[];
    rows.slice(1).forEach((r,idx)=>{
      if(!r||!r.some(x=>String(x??'').trim()))return;
-     const rec={};
-     Object.keys(FIELD_DEFS).forEach(k=>{rec[k]=pick(r,k)});
+     const rec=buildRecordFromSource(r,headers,mapping);
      rec.status=rec.status||'Ready';
      if(!rec.customerName||!rec.chassisNo){invalid++;errors.push('Row '+(idx+2)+': required field missing (Owner Name or Chassis No.)');return;}
-     const key=rec.chassisNo.toLowerCase();
-     if(existing.has(key)){duplicates++;return;}
-     existing.add(key);
-     rec._importMeta={signature:headerSignature(headers),headers:[...headers],row:Array.isArray(r)?r.map(v=>v??''):[]};
-     add(rec);imported++;
+     const key=rec.chassisNo.toLowerCase(), old=existingByChassis.get(key);
+     if(old){
+       const merged={...old,...rec,id:old.id,documents:old.documents||rec.documents,status:old.status||rec.status};
+       window.AMData?.updateRecord?.(old.id,merged);
+       duplicates++;updated++;
+       return;
+     }
+     existingByChassis.set(key,rec);add(rec);imported++;
    });
-   return {imported,duplicates,invalid,errors};
+   return {imported,duplicates,updated,invalid,errors};
+ }
+ function updateRecordsFromMapping(headers,mapping){
+   const sig=headerSignature(headers),rows=read();let updated=0;
+   const protectedFields=new Set(['chassisNo','engineNo','vehicleModel']);
+   const next=rows.map(r=>{
+     const src=r.__importSource;
+     if(!src || src.signature!==sig || !Array.isArray(src.row)) return r;
+     const patch={};
+     Object.keys(FIELD_DEFS).forEach(k=>{
+       if(protectedFields.has(k)) return;
+       const i=Number(mapping[k]);
+       patch[k]=i>=0?excelDateValue(k,src.row[i]??''):'';
+     });
+     // Protected identifiers are still refreshed from the original source row using their saved mapping.
+     protectedFields.forEach(k=>{
+       const i=Number(mapping[k]);
+       if(i>=0) patch[k]=excelDateValue(k,src.row[i]??'');
+     });
+     const nr={...r,...patch,updatedAt:new Date().toISOString(),updatedOn:date(new Date().toISOString())};
+     updated++;return nr;
+   });
+   if(updated){write(next);window.dispatchEvent(new CustomEvent('am-data-changed')); }
+   return updated;
  }
  async function importRows(rows){
    if(!rows?.length||rows.length<2)throw Error('No data rows found');
@@ -381,11 +396,18 @@ function applyMappingToExistingRecords(headers,mapping){
    if(stored && cfg.autoApplyMapping && !requiredMissing){mapping=stored;}
    else if(!stored && cfg.autoApplyMapping && !requiredMissing){mapping=autoMapping(headers);if(cfg.rememberMapping)saveMapping(headers,mapping);}
    else {mapping=await mappingModal(headers,mapping,cfg.rememberMapping);if(!mapping)throw Error('Import cancelled');}
-   try{
-     const sources=JSON.parse(localStorage.getItem('am_import_sources_v1')||'{}');
-     sources[sig]={headers:[...headers],rows:rows.slice(1).map(r=>Array.isArray(r)?r.map(v=>v??''):[])};
-     localStorage.setItem('am_import_sources_v1',JSON.stringify(sources));
-   }catch(e){console.warn('Could not cache import source',e);}
+   return rowsToRecords(rows,headers,mapping);
+ }
+ async function importCSV(t){return importRows(parseCSV(t));}
+ async function importXLSX(buf){if(!window.AMXLSX)throw Error('Excel engine is not available');const rows=await window.AMXLSX.parse(buf);return importRows(rows);}
+
+ async function importRows(rows){
+   if(!rows?.length||rows.length<2)throw Error('No data rows found');
+   const headers=rows[0].map(v=>String(v??'').trim());const sig=headerSignature(headers);const cfg=(window.getImportSettings||window.Getimportsetting||(()=>({rememberMapping:true,autoApplyMapping:true})))();const storedRaw=savedMappings()[sig];const stored=storedRaw?.mapping||storedRaw||null;let mapping=stored||autoMapping(headers);
+   const requiredMissing=Object.entries(FIELD_DEFS).some(([k,d])=>d.required&&mapping[k]<0);
+   if(stored && cfg.autoApplyMapping && !requiredMissing){mapping=stored;}
+   else if(!stored && cfg.autoApplyMapping && !requiredMissing){mapping=autoMapping(headers);if(cfg.rememberMapping)saveMapping(headers,mapping);}
+   else {mapping=await mappingModal(headers,mapping,cfg.rememberMapping);if(!mapping)throw Error('Import cancelled');}
    return rowsToRecords(rows,headers,mapping);
  }
  async function importCSV(t){return importRows(parseCSV(t));}
@@ -393,7 +415,7 @@ function applyMappingToExistingRecords(headers,mapping){
 
  /* Minimal offline XLSX reader: first worksheet, shared strings, inline strings, numeric/text cells. */
 window.AMXLSX={async parse(buf){const u=new Uint8Array(buf),dv=new DataView(buf);const dec=new TextDecoder('utf-8');function u16(i){return dv.getUint16(i,true)}function u32(i){return dv.getUint32(i,true)}function str(i,n){return dec.decode(u.slice(i,i+n))}let eoc=-1;for(let i=u.length-22;i>=0&&i>u.length-65558;i--){if(u32(i)===0x06054b50){eoc=i;break}}if(eoc<0)throw Error('Invalid XLSX file');const cdOff=u32(eoc+16),cdSize=u32(eoc+12);let p=cdOff,files={};while(p<cdOff+cdSize){if(u32(p)!==0x02014b50)break;const method=u16(p+10),cs=u32(p+20),us=u32(p+24),nl=u16(p+28),xl=u16(p+30),cl=u16(p+32),lh=u32(p+42),name=str(p+46,nl);files[name]={method,cs,us,lh};p+=46+nl+xl+cl}async function data(name){const f=files[name];if(!f)throw Error('Missing '+name);const q=f.lh,nl=u16(q+26),xl=u16(q+28),start=q+30+nl+xl,raw=u.slice(start,start+f.cs);if(f.method===0)return raw;if(f.method===8){const ds=new DecompressionStream('deflate-raw');return new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(ds)).arrayBuffer())}throw Error('Unsupported XLSX compression')}function xml(a){return dec.decode(a)}const ss=[];if(files['xl/sharedStrings.xml']){const x=xml(await data('xl/sharedStrings.xml'));for(const si of x.match(/<si[\s\S]*?<\/si>/g)||[]){ss.push([...si.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(m=>m[1]).join('').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"'))}}let sheet=Object.keys(files).find(k=>/^xl\/worksheets\/sheet\d+\.xml$/i.test(k));if(!sheet)throw Error('Worksheet not found');const x=xml(await data(sheet)),rows=[];for(const rm of x.match(/<row[\s\S]*?<\/row>/g)||[]){const cells=[];for(const cm of rm.match(/<c[\s\S]*?<\/c>/g)||[]){const ref=(cm.match(/\br="([A-Z]+)\d+"/)||[])[1]||'';let col=0;for(const ch of ref)col=col*26+ch.charCodeAt(0)-64;col--;const type=(cm.match(/\bt="([^"]+)"/)||[])[1]||'';const vm=(cm.match(/<v>([\s\S]*?)<\/v>/)||[])[1]??'';const im=(cm.match(/<is[\s\S]*?<t[^>]*>([\s\S]*?)<\/t>[\s\S]*?<\/is>/)||[])[1];let v=type==='s'?(ss[Number(vm)]??''):type==='inlineStr'?(im??''):vm;if(type!=='s'&&type!=='inlineStr'&&/^[-+]?\d+(\.\d+)?$/.test(v))v=Number(v);cells[col]=v}while(cells.length&&cells[cells.length-1]===undefined)cells.pop();rows.push(cells)}return rows}};
-window.__AMImportMapping={getDefs:()=>FIELD_DEFS,getMappings:savedMappings,save:(headers,m,apply=true)=>saveMapping(headers,m,apply),apply:(headers,m)=>applyMappingToExistingRecords(headers,m),signature:headerSignature};
+window.__AMImportMapping={getDefs:()=>FIELD_DEFS,getMappings:savedMappings,save:(headers,m)=>saveMapping(headers,m),saveAndUpdate:(headers,m)=>{saveMapping(headers,m);return updateRecordsFromMapping(headers,m)},signature:headerSignature};
  window.AMData={read,write,stats,addRecord:add,deleteRecord:del,getRecord:id=>read().find(r=>String(r.id)===String(id))||null,updateRecord:(id,patch)=>{const rows=read();const i=rows.findIndex(r=>String(r.id)===String(id));if(i<0)return false;rows[i]={...rows[i],...patch,updatedAt:new Date().toISOString(),updatedOn:date(new Date().toISOString())};write(rows);return true;},importRows,importCSV,importXLSX,renderDashboard:render,renderMasterPage:renderMaster};
  window.addEventListener('am-data-changed',()=>{render();renderMaster();});
  document.addEventListener('click',e=>{const d=e.target.closest('.row-action,.record-delete');if(d){del(d.dataset.id);window.__amNotify?.('Record deleted');render();renderMaster();}});
@@ -426,8 +448,12 @@ document.addEventListener("DOMContentLoaded", () => {
     e.stopPropagation();
     document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
     item.classList.add("active");
-    const label=item.querySelector(':scope > span:not(.nav-arrow)');
-    const name=(label ? label.textContent : item.textContent).replace(/›/g,'').replace(/\s+/g,' ').trim();
+    const name=(item.dataset.page || item.querySelector(':scope > .nav-label')?.textContent || item.textContent).replace(/›/g,'').replace(/\s+/g,' ').trim();
+    const topbar=document.querySelector('.topbar');
+    if(topbar){
+      topbar.classList.add('search-dashboard-only');
+      topbar.classList.toggle('is-dashboard', name==='Dashboard');
+    }
     if(name==='Dashboard'){
       document.getElementById('dashboard-view')?.classList.remove('dashboard-hidden');
       document.getElementById('page-view')?.classList.remove('active');
@@ -470,7 +496,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "VAHAN Automation": `<div class="page-head"><div><h1>VAHAN Automation</h1><p>Guided VAHAN registration workflow using your actual Master Records.</p></div><div class="page-actions"><span class="pill" id="vahanAutomationState">Ready</span><button class="btn soft" id="vahanSaveProgress">Save Progress</button></div></div><div class="module-card"><div class="stepper" id="vahanStepper"><div class="vstep active" data-step="1"><div class="vstep-num">1</div><strong>Record Selection</strong></div><div class="vstep" data-step="2"><div class="vstep-num">2</div><strong>Data Preparation</strong></div><div class="vstep" data-step="3"><div class="vstep-num">3</div><strong>Documents</strong></div><div class="vstep" data-step="4"><div class="vstep-num">4</div><strong>VAHAN Processing</strong></div><div class="vstep" data-step="5"><div class="vstep-num">5</div><strong>Verification</strong></div></div><div id="vahanStepContent"></div></div>`,
     "Reports": `<div class="page-head"><div><h1>Reports</h1><p>Review operational summaries and generate dealer reports.</p></div><div class="page-actions"><button class="btn" data-toast="Report filters opened">Filters</button><button class="btn primary" data-toast="Report generation started">Generate Report</button></div></div><div class="module-grid cols-4"><div class="module-card"><h3>Total Records</h3><div class="module-stat">1,248</div><p>This period</p></div><div class="module-card"><h3>Completed</h3><div class="module-stat">612</div><p>49% of records</p></div><div class="module-card"><h3>VAHAN Success</h3><div class="module-stat">310</div><p>Processed successfully</p></div><div class="module-card"><h3>Pending Docs</h3><div class="module-stat">108</div><p>Requires action</p></div></div><div class="module-grid cols-2" style="margin-top:12px"><div class="module-card"><h3>Records Trend</h3><p>Illustrative monthly activity</p><div class="report-chart"><div class="bar" style="height:52%"><b>420</b><small>May</small></div><div class="bar" style="height:66%"><b>530</b><small>Jun</small></div><div class="bar" style="height:58%"><b>470</b><small>Jul</small></div><div class="bar" style="height:78%"><b>640</b><small>Aug</small></div><div class="bar" style="height:92%"><b>760</b><small>Sep</small></div></div></div><div class="module-card"><h3>Available Reports</h3><p>Common report formats</p><div class="check-list" style="margin-top:13px"><div class="check"><span>▤</span> Master Records Summary <button class="btn" style="margin-left:auto" data-toast="Report preview opened">Preview</button></div><div class="check"><span>▤</span> VAHAN Processing Report <button class="btn" style="margin-left:auto" data-toast="Report preview opened">Preview</button></div><div class="check"><span>▤</span> Document Pending Report <button class="btn" style="margin-left:auto" data-toast="Report preview opened">Preview</button></div><div class="check"><span>▤</span> Import History Report <button class="btn" style="margin-left:auto" data-toast="Report preview opened">Preview</button></div></div></div></div>`,
     "Operators": `<div class="page-head"><div><h1>Operators</h1><p>Manage operator accounts, access status and workspace permissions.</p></div><div class="page-actions"><button class="btn primary" data-toast="Add operator form opened">+ Add Operator</button></div></div><div class="module-grid cols-3"><div class="module-card"><h3>Active Operators</h3><div class="module-stat">8</div><p>Currently enabled</p></div><div class="module-card"><h3>Pending Access</h3><div class="module-stat">2</div><p>Awaiting approval</p></div><div class="module-card"><h3>Roles</h3><div class="module-stat">4</div><p>Configured access levels</p></div></div><div class="module-card" style="margin-top:12px"><table class="data-table"><thead><tr><th>Operator</th><th>Employee ID</th><th>Role</th><th>Last Active</th><th>Status</th><th>Access</th><th>Action</th></tr></thead><tbody><tr><td><div class="module-row"><div class="operator-avatar">CP</div><div><b>Chirag Patel</b><small>Sales Desk</small></div></div></td><td>OP-001</td><td>Senior Operator</td><td>Today, 10:14 AM</td><td><span class="pill green">Active</span></td><td><span class="toggle on"></span></td><td>Edit</td></tr><tr><td><div class="module-row"><div class="operator-avatar">RS</div><div><b>Rajesh Shah</b><small>Registration</small></div></div></td><td>OP-002</td><td>Operator</td><td>Today, 09:48 AM</td><td><span class="pill green">Active</span></td><td><span class="toggle on"></span></td><td>Edit</td></tr><tr><td><div class="module-row"><div class="operator-avatar">ND</div><div><b>Neha Desai</b><small>Documents</small></div></div></td><td>OP-003</td><td>Document Operator</td><td>Yesterday</td><td><span class="pill gray">Inactive</span></td><td><span class="toggle"></span></td><td>Edit</td></tr></tbody></table></div>`,
-    "Settings": `<div class="page-head"><div><h1>Settings</h1><p>Configure dealer workspace, application preferences and automation options.</p></div><div class="page-actions"><button class="btn primary" data-toast="Settings saved">Save Changes</button></div></div><div class="settings-layout"><nav class="settings-nav"><button class="active" data-setting="application">Application</button><button data-setting="branding">Dealership Branding</button><button data-setting="appearance">Appearance</button><button data-setting="data">Data & Import</button><button>Export</button><button>Documents</button><button>VAHAN Automation</button><button>Notifications</button><button>Backup</button><button>About</button></nav><section class="setting-section" id="settingsApplication"><h3>Application Settings</h3><p>General dealer workspace configuration.</p><div class="setting-row"><div><strong>Dealer Name</strong><small>Name shown throughout the workspace.</small></div><input class="text-field" value="Shree Motors" id="dealerNameField"></div><div class="setting-row"><div><strong>Dealer Code</strong><small>Local dealer identifier. Used to keep dealer branding separate.</small></div><input class="text-field" value="GJ06 - Ahmedabad" id="dealerCodeField"></div><div class="setting-row"><div><strong>Startup Dashboard</strong><small>Open Dashboard when the application starts.</small></div><span class="toggle on"></span></div><div class="setting-row"><div><strong>Local Database</strong><small>Store dealer workspace data locally.</small></div><span class="pill green">Connected</span></div><div class="setting-row"><div><strong>Auto-save Changes</strong><small>Save form changes automatically where supported.</small></div><span class="toggle on"></span></div></section><section class="setting-section" id="settingsBranding" style="display:none"><h3>Dealership Branding</h3><p>Set the showroom photo shown in the Dashboard Hero for this dealer.</p><div class="branding-preview" id="brandingPreview"><div class="branding-empty"><strong>No showroom photo selected</strong>Upload a dealership image to personalize this workspace.</div><img id="brandingPreviewImage" alt="Showroom preview"></div><div class="branding-actions"><label class="btn primary file-button">Upload Showroom Photo<input type="file" id="showroomPhotoInput" accept="image/jpeg,image/png,image/webp"></label><button class="btn soft" type="button" id="saveShowroomPhoto">Save Photo</button><button class="btn soft" type="button" id="resetShowroomPhoto">Reset to Default</button></div><div class="branding-status" id="brandingStatus"></div><div class="branding-note">JPG, PNG or WebP • Recommended wide showroom photo • Stored locally for this dealer code. The image stays on this computer/browser and is not uploaded to a server by this demo.</div></section><section class="setting-section" id="settingsDataImport" style="display:none"><h3>Data &amp; Import Settings</h3><p>Control Excel/CSV import, saved column mappings and protected vehicle identifiers.</p>
+    "Settings": `<div class="page-head"><div><h1>Settings</h1><p>Configure dealer workspace, application preferences and automation options.</p></div><div class="page-actions"><button class="btn primary" data-toast="Settings saved">Save Changes</button></div></div><div class="settings-layout"><nav class="settings-nav"><button class="active" data-setting="application">Application</button><button data-setting="branding">Dealership Branding</button><button data-setting="appearance">Appearance</button><button data-setting="data">Data & Import</button><button>Export</button><button>Documents</button><button>VAHAN Automation</button><button>Notifications</button><button>Backup</button><button>About</button></nav><section class="setting-section" id="settingsApplication"><h3>Application Settings</h3><p>General dealer workspace configuration.</p><div class="setting-row"><div><strong>Dealer Name</strong><small>Name shown throughout the workspace.</small></div><input class="text-field" value="Shree Motors" id="dealerNameField"></div><div class="setting-row"><div><strong>Dealer Code</strong><small>Local dealer identifier. Used to keep dealer branding separate.</small></div><input class="text-field" value="GJ06 - Ahmedabad" id="dealerCodeField"></div><div class="setting-row"><div><strong>Startup Dashboard</strong><small>Open Dashboard when the application starts.</small></div><span class="toggle on"></span></div><div class="setting-row"><div><strong>Local Database</strong><small>Store dealer workspace data locally.</small></div><span class="pill green">Connected</span></div><div class="setting-row"><div><strong>Auto-save Changes</strong><small>Save form changes automatically where supported.</small></div><span class="toggle on"></span></div></section><section class="setting-section" id="settingsBranding" style="display:none"><h3>Dealership Branding</h3><p>Set the showroom photo shown in the Dashboard Hero for this dealer.</p><div class="branding-preview" id="brandingPreview"><div class="branding-empty"><strong>No showroom photo selected</strong>Upload a dealership image to personalize this workspace.</div><img id="brandingPreviewImage" alt="Showroom preview"></div><div class="branding-actions"><label class="btn primary file-button">Upload Showroom Photo<input type="file" id="showroomPhotoInput" accept="image/jpeg,image/png,image/webp"></label><button class="btn soft" type="button" id="saveShowroomPhoto">Save Photo</button><button class="btn soft" type="button" id="resetShowroomPhoto">Reset to Default</button></div><div class="branding-status" id="brandingStatus"></div><div class="branding-note">JPG, PNG or WebP • Recommended wide showroom photo • Stored locally for this dealer code. The image stays on this computer/browser and is not uploaded to a server by this demo.</div></section><section class="setting-section" id="settingsAppearance" style="display:none"><h3>Appearance Settings</h3><p>Choose which record interface is shown in the sidebar. Both options use the same shared records and documents.</p><div class="setting-row"><div><strong>Record View</strong><small>Select the single record interface you want to use.</small></div><select id="recordViewSetting" class="select" style="min-width:260px"><option value="VAHAN Automation View">VAHAN Automation View</option><option value="Master Record View">Master Record View</option></select></div><div class="setting-row"><div><strong>Sidebar Preview</strong><small>The unselected record menu will be hidden; its underlying data remains shared.</small></div><span class="pill green" id="recordViewStatus">VAHAN Automation View active</span></div><button class="btn primary" type="button" id="saveRecordViewSetting">Save Record View</button><div id="recordViewSettingStatus" style="margin-top:10px;color:#526988;font-size:12px"></div></section><section class="setting-section" id="settingsDataImport" style="display:none"><h3>Data &amp; Import Settings</h3><p>Control Excel/CSV import, saved column mappings and protected vehicle identifiers.</p>
 <div class="setting-row"><div><strong>Remember Import Mapping</strong><small>Save your column mapping locally after the first successful mapping.</small></div><label><input type="checkbox" id="rememberMappingSetting" style="width:18px;height:18px"></label></div>
 <div class="setting-row"><div><strong>Auto Apply Saved Mapping</strong><small>When the same column format is detected, apply the saved mapping automatically.</small></div><label><input type="checkbox" id="autoMappingSetting" style="width:18px;height:18px"></label></div>
 <div class="setting-section" style="margin-top:14px;padding:14px;background:#f8fbfe;border-radius:9px;border:1px solid #dbe5ef">
@@ -481,7 +507,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <button class="btn primary" type="button" id="editSavedMappingBtn">Edit Mapping</button>
     <button class="btn soft" type="button" id="resetSelectedMappingBtn">Reset Selected</button>
   </div>
-  <div id="savedMappingEditor" style="margin-top:12px;display:none"></div>
+  <div id="savedMappingEditor" style="margin-top:12px"></div>
 </div>
 <div class="setting-row"><div><strong>Saved Column Mappings</strong><small>Clear all remembered Excel/CSV mappings. Your records are not deleted.</small></div><button class="btn soft" type="button" id="clearSavedMappingsBtn">Clear Mappings</button></div>
 <div id="mappingSettingsStatus" style="margin-top:10px;color:#526988;font-size:12px"></div></section></div>`
@@ -527,51 +553,88 @@ document.addEventListener("DOMContentLoaded", () => {
     const selector=document.getElementById('savedMappingSelector'), editor=document.getElementById('savedMappingEditor'), editBtn=document.getElementById('editSavedMappingBtn');
     const manager=window.__AMImportMapping;
     const escLocal=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    let expanded=false;
     function getMapEntries(){return manager?.getMappings?.()||{}}
-    function collapseEditor(){
-      expanded=false;
-      if(editor){editor.style.display='none';editor.innerHTML='';}
-      if(editBtn){editBtn.textContent='Edit Mapping';editBtn.classList.remove('primary');editBtn.classList.add('soft');}
-    }
+    let editorOpen=false;
     function refreshSelector(){
       if(!selector)return;
-      const maps=getMapEntries(), keys=Object.keys(maps);
+      const maps=getMapEntries(); const keys=Object.keys(maps);
       selector.innerHTML=keys.length?keys.map((key,i)=>{const raw=maps[key]||{};const hs=raw.headers||key.split('|');const label=(hs.slice(0,4).filter(Boolean).join(' • ')||('Saved format '+(i+1)));return `<option value="${escLocal(key)}">${escLocal(label)}${hs.length>4?' …':''}</option>`}).join(''):'<option value="">No saved mappings yet</option>';
-      collapseEditor();
+      if(editorOpen)renderEditor(selector.value,true); else collapseEditor();
     }
-    function renderEditor(key){
+    function collapseEditor(){
+      editorOpen=false;
+      if(editor) editor.innerHTML='';
+      if(editBtn) editBtn.textContent='Edit Mapping';
+    }
+    function renderEditor(key,open=true){
       if(!editor)return;
-      if(!key){editor.innerHTML='<div class="empty-records" style="padding:20px">No saved mapping yet. Import an Excel/CSV file once and save its mapping.</div>';editor.style.display='block';return;}
-      const raw=getMapEntries()[key]||{}, headers=raw.headers||key.split('|'), mapping=raw.mapping||raw, defs=manager?.getDefs?.()||{};
+      if(!key){collapseEditor();return;}
+      editorOpen=!!open;
+      if(editBtn) editBtn.textContent=editorOpen?'Minimize Mapping':'Edit Mapping';
+      if(!editorOpen){editor.innerHTML='';return;}
+      const raw=getMapEntries()[key]||{}; const headers=raw.headers||key.split('|'); const mapping=raw.mapping||raw; const defs=manager?.getDefs?.()||{};
       const opts=(current,readonly)=>['<option value="-1">— Do not import —</option>',...headers.map((h,i)=>`<option value="${i}" ${Number(current)===i?'selected':''}>${escLocal(h||('Column '+(i+1)))}</option>`)].join('');
-      editor.innerHTML=`<div style="border-top:1px solid #dbe5ef;padding-top:12px"><div class="map-grid">${Object.entries(defs).map(([field,d])=>`<div class="map-row"><div><b>${escLocal(d.label)}</b>${d.readonly?'<span class="map-required" style="background:#edf2f7;color:#60748c">🔒 Read Only</span>':d.required?'<span class="map-required">Required</span>':''}</div><select class="select settings-map-select" data-field="${escLocal(field)}" ${d.readonly?'disabled':''}>${opts(mapping[field],d.readonly)}</select></div>`).join('')}</div><div style="display:flex;gap:8px;margin-top:12px;align-items:center"><button class="btn primary" type="button" id="saveEditedMappingBtn">Save Mapping & Update Records</button><button class="btn soft" type="button" id="minimizeMappingBtn">Minimize</button><span style="font-size:11px;color:#60748c">${headers.length} Excel columns detected</span></div></div>`;
+      editor.innerHTML=`<div class="map-grid">${Object.entries(defs).map(([field,d])=>`<div class="map-row"><div><b>${escLocal(d.label)}</b>${d.readonly?'<span class="map-required" style="background:#edf2f7;color:#60748c">🔒 Read Only</span>':d.required?'<span class="map-required">Required</span>':''}</div><select class="select settings-map-select" data-field="${escLocal(field)}" ${d.readonly?'disabled':''}>${opts(mapping[field],d.readonly)}</select></div>`).join('')}</div>
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
+          <button class="btn primary" type="button" id="saveEditedMappingBtn">Save Mapping &amp; Update Records</button>
+          <button class="btn soft" type="button" id="minimizeMappingBtn">Minimize</button>
+          <span id="mappingSaveFeedback" style="font-size:11px;color:#60748c">${headers.length} Excel columns detected</span>
+        </div>`;
       editor.querySelector('#saveEditedMappingBtn')?.addEventListener('click',()=>{
         const m={};editor.querySelectorAll('.settings-map-select').forEach(sel=>m[sel.dataset.field]=Number(sel.value));
-        const changed=manager?.save?.(headers,m,true)??0;
-        if(status)status.textContent=`Mapping saved. ${changed} record${changed===1?'':'s'} updated instantly.`;
-        renderEditor(key);
+        const updated=manager?.saveAndUpdate?.(headers,m)||0;
+        const now=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        if(status)status.textContent=`✓ Mapping saved • ${updated} record(s) updated • ${now}`;
+        const feedback=editor.querySelector('#mappingSaveFeedback');
+        if(feedback)feedback.textContent=`✓ Saved at ${now} • ${updated} record(s) updated`;
+        refreshSelector();
+        selector.value=key;
+        renderEditor(key,true);
       });
       editor.querySelector('#minimizeMappingBtn')?.addEventListener('click',collapseEditor);
-      editor.style.display='block';
-      expanded=true;
-      if(editBtn){editBtn.textContent='Minimize Mapping';editBtn.classList.remove('soft');editBtn.classList.add('primary');}
     }
-    editBtn?.addEventListener('click',()=>expanded?collapseEditor():renderEditor(selector?.value));
-    selector?.addEventListener('change',()=>{if(expanded)renderEditor(selector.value);});
+    editBtn?.addEventListener('click',()=>{const key=selector?.value;if(!key)return;renderEditor(key,!editorOpen);});
+    selector?.addEventListener('change',()=>{collapseEditor();});
     document.getElementById('resetSelectedMappingBtn')?.addEventListener('click',()=>{
-      const key=selector?.value;if(!key)return;const maps=getMapEntries();delete maps[key];localStorage.setItem('am_import_mappings_v2',JSON.stringify(maps));if(status)status.textContent='Selected mapping reset.';refreshSelector();
+      const key=selector?.value;if(!key)return;const maps=getMapEntries();delete maps[key];localStorage.setItem('am_import_mappings_v2',JSON.stringify(maps));if(status)status.textContent='Selected mapping reset.';collapseEditor();refreshSelector();
     });
-        clear?.addEventListener('click',()=>{localStorage.removeItem('am_import_mappings_v2'); if(status)status.textContent='All saved column mappings cleared.'; window.__amNotify?.('Saved import mappings cleared');refreshSelector();});
+    clear?.addEventListener('click',()=>{localStorage.removeItem('am_import_mappings_v2'); if(status)status.textContent='All saved column mappings cleared.'; window.__amNotify?.('Saved import mappings cleared');collapseEditor();refreshSelector();});
+    collapseEditor();
     refreshSelector();
+  }
+  function getRecordViewSetting(){ return localStorage.getItem('am_record_view_setting') || 'VAHAN Automation View'; }
+  function applyRecordViewSetting(){
+    const mode=getRecordViewSetting();
+    document.querySelectorAll('.nav-item[data-page="Master Records"]').forEach(el=>el.style.display=mode==='Master Record View'?'':'none');
+    document.querySelectorAll('.nav-item[data-page="VAHAN Automation"]').forEach(el=>el.style.display=mode==='VAHAN Automation View'?'':'none');
+    const select=document.getElementById('recordViewSetting');
+    if(select) select.value=mode;
+    const status=document.getElementById('recordViewStatus');
+    if(status) status.textContent=mode+' active';
+  }
+  function setupRecordViewSetting(){
+    const select=document.getElementById('recordViewSetting');
+    const save=document.getElementById('saveRecordViewSetting');
+    const status=document.getElementById('recordViewSettingStatus');
+    if(select) select.value=getRecordViewSetting();
+    if(save) save.onclick=()=>{
+      const mode=select?.value||'VAHAN Automation View';
+      localStorage.setItem('am_record_view_setting',mode);
+      applyRecordViewSetting();
+      if(status) status.innerHTML='<span style="color:#1a9a5b;font-weight:700">✓ Record View saved: '+mode+'</span>';
+      window.__amNotify?.('Record View setting saved');
+    };
+    applyRecordViewSetting();
   }
   function setupSettingsTabs(){
     const buttons=[...document.querySelectorAll('.settings-nav button[data-setting]')];
-    const app=document.getElementById('settingsApplication'), brand=document.getElementById('settingsBranding'), data=document.getElementById('settingsDataImport');
-    buttons.forEach(btn=>btn.addEventListener('click',()=>{buttons.forEach(x=>x.classList.remove('active'));btn.classList.add('active'); const key=btn.dataset.setting; if(app)app.style.display=key==='application'?'block':'none'; if(brand)brand.style.display=key==='branding'?'block':'none'; if(data)data.style.display=key==='data'?'block':'none'; if(key==='branding')setupBrandingUI(); if(key==='data')setupImportSettingsUI();}));
-    if(document.querySelector('.settings-nav button[data-setting="application"]')?.classList.contains('active')){if(app)app.style.display='block';if(brand)brand.style.display='none';if(data)data.style.display='none';}
+    const app=document.getElementById('settingsApplication'), brand=document.getElementById('settingsBranding'), appearance=document.getElementById('settingsAppearance'), data=document.getElementById('settingsDataImport');
+    buttons.forEach(btn=>btn.addEventListener('click',()=>{buttons.forEach(x=>x.classList.remove('active'));btn.classList.add('active'); const key=btn.dataset.setting; if(app)app.style.display=key==='application'?'block':'none'; if(brand)brand.style.display=key==='branding'?'block':'none'; if(appearance)appearance.style.display=key==='appearance'?'block':'none'; if(data)data.style.display=key==='data'?'block':'none'; if(key==='branding')setupBrandingUI(); if(key==='appearance')setupRecordViewSetting(); if(key==='data')setupImportSettingsUI();}));
+    if(document.querySelector('.settings-nav button[data-setting="application"]')?.classList.contains('active')){if(app)app.style.display='block';if(brand)brand.style.display='none';if(appearance)appearance.style.display='none';if(data)data.style.display='none';}
+    applyRecordViewSetting();
   }
 
+  window.addEventListener('storage', applyRecordViewSetting);
   function openPage(name){
     if(!pages[name]){ dashboard.classList.remove('dashboard-hidden'); pageView.classList.remove('active'); return; }
     dashboard.classList.add('dashboard-hidden'); pageView.classList.add('active'); pageContent.innerHTML='<button class="btn soft page-back" type="button" style="margin-bottom:12px">'+(name==='VAHAN Automation'?'← VAHAN Automation Records':'← Dashboard')+'</button>'+pages[name];
@@ -710,7 +773,7 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 </script>
 <style>.import-map-modal{width:min(680px,calc(100% - 28px));max-height:90vh;overflow:auto}.map-grid{display:grid;gap:8px;margin-top:14px}.map-row{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;align-items:center;padding:9px 10px;background:#f7f9fc;border:1px solid #e3eaf2;border-radius:9px}.map-row>div{font-size:12px;color:#233b5d}.map-required{display:inline-block;margin-left:7px;font-size:10px;color:#c62828}.map-save{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:12px;color:#526988}.map-save input{accent-color:#126be8}.drop-zone.drag-active{border-color:#126be8!important;background:#eef6ff!important}</style><style>.empty-records{text-align:center!important;padding:28px!important;color:#667a93!important;font-size:12px!important}.row-action{border:0;background:#ffe9e9;color:#c62828;border-radius:5px;width:28px;height:26px;cursor:pointer;font-size:18px}.record-delete{padding:5px 9px!important;font-size:11px!important}.file-button{position:relative;overflow:hidden;display:inline-flex;align-items:center;cursor:pointer}.file-button input{position:absolute;inset:0;opacity:0;cursor:pointer}</style>
-<script>(function(){function dl(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},100)}function esc(v){const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}function bind(){const input=document.getElementById('csvImportInput');if(input&&!input.dataset.b){input.dataset.b=1;const runImport=async f=>{if(!f)return;const statusEl=document.getElementById('importStatus');statusEl.textContent='Reading '+(f.name||f.webkitRelativePath||'selected file')+'…';try{const name=String(f.name||f.webkitRelativePath||'').toLowerCase();const type=String(f.type||'').toLowerCase();const buf=await (f.arrayBuffer?f.arrayBuffer():new Promise((resolve,reject)=>{const rr=new FileReader();rr.onload=()=>resolve(rr.result);rr.onerror=()=>reject(Error('Mobile browser could not read the selected file'));rr.readAsArrayBuffer(f)}));const u=new Uint8Array(buf);const isCFB=u.length>=8&&u[0]===0xD0&&u[1]===0xCF&&u[2]===0x11&&u[3]===0xE0&&u[4]===0xA1&&u[5]===0xB1&&u[6]===0x1A&&u[7]===0xE1;const isZIP=u.length>=4&&u[0]===0x50&&u[1]===0x4B&&u[2]===0x03&&u[3]===0x04;let kind=isCFB?'xls':isZIP?'xlsx':name.endsWith('.xlsx')?'xlsx':name.endsWith('.xls')?'xls':name.endsWith('.csv')||type.includes('csv')?'csv':type.includes('spreadsheet')?'xlsx':'';let r;if(kind==='xls'){if(!window.AMXLS)throw Error('Legacy .xls engine is not available');r=await AMData.importRows(window.AMXLS.parse(buf))}else if(kind==='xlsx'){r=await AMData.importXLSX(buf)}else if(kind==='csv'){r=await AMData.importCSV(await new Blob([buf]).text())}else{throw Error('Unsupported file. Please select a valid Excel (.xls/.xlsx) or CSV file.')}statusEl.textContent=`Imported ${r.imported} record(s).${r.duplicates?' '+r.duplicates+' duplicate(s) skipped.':''}${r.invalid?' '+r.invalid+' invalid row(s) skipped.':''}`;if(r.errors?.length)statusEl.title=r.errors.join('\n');input.value='';sync()}catch(e){console.error('Auto Management import error:',e);statusEl.textContent='Import failed: '+(e?.message||String(e))}};input.onchange=()=>runImport(input.files?.[0]);const zone=input.closest('.drop-zone');if(zone){['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.add('drag-active')}));['dragleave','drop'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.remove('drag-active')}));zone.addEventListener('drop',e=>runImport(e.dataTransfer?.files?.[0]))}}const tmpl=document.getElementById('downloadTemplateBtn');if(tmpl&&!tmpl.dataset.b){tmpl.dataset.b=1;tmpl.onclick=()=>dl('auto-management-template.csv','Customer Name,Mobile,Vehicle Model,Chassis No,Invoice No,Status\n,,,,,Ready\n')}const clear=document.getElementById('clearAllRecordsBtn');if(clear&&!clear.dataset.b){clear.dataset.b=1;clear.onclick=()=>{if(confirm('Clear all local records? This cannot be undone.')){AMData.write([]);document.getElementById('importStatus').textContent='All local records cleared.';sync()}}}}function sync(){const s=AMData.stats();[['importTotal',s.total],['importReady',s.ready],['importProgress',s.progress],['importPending',s.pending]].forEach(x=>{const e=document.getElementById(x[0]);if(e)e.textContent=x[1]});AMData.renderDashboard();AMData.renderMasterPage()}window.__amBindFunctionalPage=bind;window.addEventListener('am-page-ready',bind);function clock(){const e=document.getElementById('liveDateTime');if(e)e.textContent=new Date().toLocaleString([],{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}clock();setInterval(clock,30000);document.addEventListener('click',e=>{const q=e.target.closest('.quick-grid button');if(!q)return;const n=q.querySelector('b')?.textContent,map={'Import Excel':'Import Center','Start VAHAN':'VAHAN Automation','Find Record':'Master Records','Upload Document':'Master Records','Generate Report':'Reports','Manage Operators':'Operators'};if(map[n]){e.preventDefault();window.__amOpenPage?.(map[n])}});document.addEventListener('click',e=>{const a=e.target.closest('#dashboardViewAll');if(a){e.preventDefault();window.__amOpenPage?.('Master Records')}});document.addEventListener('click',e=>{const a=e.target.closest('#dashboardAnnouncementsAll');if(a){e.preventDefault();window.__amNotify?.('No announcements configured.')}});document.addEventListener('click',e=>{const t=e.target.closest('.records-card .tabs button');if(t)window.dispatchEvent(new CustomEvent('am-dashboard-filter',{detail:t.textContent.trim()}))});sync()})();</script>
+<script>(function(){function dl(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},100)}function esc(v){const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}function bind(){const input=document.getElementById('csvImportInput');if(input&&!input.dataset.b){input.dataset.b=1;const runImport=async f=>{if(!f)return;const statusEl=document.getElementById('importStatus');statusEl.textContent='Reading '+(f.name||f.webkitRelativePath||'selected file')+'…';try{const name=String(f.name||f.webkitRelativePath||'').toLowerCase();const type=String(f.type||'').toLowerCase();const buf=await (f.arrayBuffer?f.arrayBuffer():new Promise((resolve,reject)=>{const rr=new FileReader();rr.onload=()=>resolve(rr.result);rr.onerror=()=>reject(Error('Mobile browser could not read the selected file'));rr.readAsArrayBuffer(f)}));const u=new Uint8Array(buf);const isCFB=u.length>=8&&u[0]===0xD0&&u[1]===0xCF&&u[2]===0x11&&u[3]===0xE0&&u[4]===0xA1&&u[5]===0xB1&&u[6]===0x1A&&u[7]===0xE1;const isZIP=u.length>=4&&u[0]===0x50&&u[1]===0x4B&&u[2]===0x03&&u[3]===0x04;let kind=isCFB?'xls':isZIP?'xlsx':name.endsWith('.xlsx')?'xlsx':name.endsWith('.xls')?'xls':name.endsWith('.csv')||type.includes('csv')?'csv':type.includes('spreadsheet')?'xlsx':'';let r;if(kind==='xls'){if(!window.AMXLS)throw Error('Legacy .xls engine is not available');r=await AMData.importRows(window.AMXLS.parse(buf))}else if(kind==='xlsx'){r=await AMData.importXLSX(buf)}else if(kind==='csv'){r=await AMData.importCSV(await new Blob([buf]).text())}else{throw Error('Unsupported file. Please select a valid Excel (.xls/.xlsx) or CSV file.')}statusEl.textContent=`Imported ${r.imported} record(s).${r.updated?' '+r.updated+' existing record(s) updated.':''}${r.duplicates&&r.updated?' '+r.duplicates+' duplicate(s) matched.':r.duplicates?' '+r.duplicates+' duplicate(s) skipped.':''}${r.invalid?' '+r.invalid+' invalid row(s) skipped.':''}`;if(r.errors?.length)statusEl.title=r.errors.join('\n');input.value='';sync()}catch(e){console.error('Auto Management import error:',e);statusEl.textContent='Import failed: '+(e?.message||String(e))}};input.onchange=()=>runImport(input.files?.[0]);const zone=input.closest('.drop-zone');if(zone){['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.add('drag-active')}));['dragleave','drop'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.remove('drag-active')}));zone.addEventListener('drop',e=>runImport(e.dataTransfer?.files?.[0]))}}const tmpl=document.getElementById('downloadTemplateBtn');if(tmpl&&!tmpl.dataset.b){tmpl.dataset.b=1;tmpl.onclick=()=>dl('auto-management-template.csv','Customer Name,Mobile,Vehicle Model,Chassis No,Invoice No,Status\n,,,,,Ready\n')}const clear=document.getElementById('clearAllRecordsBtn');if(clear&&!clear.dataset.b){clear.dataset.b=1;clear.onclick=()=>{if(confirm('Clear all local records? This cannot be undone.')){AMData.write([]);document.getElementById('importStatus').textContent='All local records cleared.';sync()}}}}function sync(){const s=AMData.stats();[['importTotal',s.total],['importReady',s.ready],['importProgress',s.progress],['importPending',s.pending]].forEach(x=>{const e=document.getElementById(x[0]);if(e)e.textContent=x[1]});AMData.renderDashboard();AMData.renderMasterPage()}window.__amBindFunctionalPage=bind;window.addEventListener('am-page-ready',bind);function clock(){const e=document.getElementById('liveDateTime');if(e)e.textContent=new Date().toLocaleString([],{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}clock();setInterval(clock,30000);document.addEventListener('click',e=>{const q=e.target.closest('.quick-grid button');if(!q)return;const n=q.querySelector('b')?.textContent,map={'Import Excel':'Import Center','Start VAHAN':'VAHAN Automation','Find Record':'Master Records','Upload Document':'Master Records','Generate Report':'Reports','Manage Operators':'Operators'};if(map[n]){e.preventDefault();window.__amOpenPage?.(map[n])}});document.addEventListener('click',e=>{const a=e.target.closest('#dashboardViewAll');if(a){e.preventDefault();window.__amOpenPage?.('Master Records')}});document.addEventListener('click',e=>{const a=e.target.closest('#dashboardAnnouncementsAll');if(a){e.preventDefault();window.__amNotify?.('No announcements configured.')}});document.addEventListener('click',e=>{const t=e.target.closest('.records-card .tabs button');if(t)window.dispatchEvent(new CustomEvent('am-dashboard-filter',{detail:t.textContent.trim()}))});sync()})();</script>
 <script>
 (function(){
   const VAHAN_FIELDS=[
@@ -880,3 +943,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 .master-toolbar{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:10px 0 8px}.master-search-wrap{height:43px;flex:1;max-width:640px;background:#fff;border:1px solid #d4e0eb;border-radius:7px;display:flex;align-items:center;padding:0 12px;box-shadow:0 2px 7px rgba(21,58,91,.04)}.master-search-wrap span{font-size:22px;color:#647a94;margin-right:9px}.master-search-wrap input{border:0;outline:0;width:100%;font-size:12px;color:#213b5c}.master-toolbar-actions{display:flex;gap:8px}.master-action{border:1px solid #cbd9e6;background:#fff;color:#173c67;border-radius:6px;padding:10px 13px;font-size:12px;font-weight:600;cursor:pointer}.master-action.import-link{border-color:#9fd3b8;color:#16814d}.master-tabs{display:flex;align-items:center;gap:4px;border-bottom:1px solid #dbe5ee;margin-top:4px;overflow:auto;padding-bottom:1px}.master-tab{border:1px solid transparent;background:transparent;color:#516984;padding:9px 13px;border-radius:6px 6px 0 0;font-size:11px;white-space:nowrap;cursor:pointer}.master-tab.active{background:#3156d3;color:#fff}.master-tab b{margin-left:3px}.master-helper{font-size:11px;color:#71839a;padding:8px 2px}.master-table-card{margin-top:0;border-radius:8px}.master-data-table{min-width:980px}.master-data-table th{height:42px;background:#f6f9fc;color:#52677f;font-size:10px;letter-spacing:.3px}.master-data-table td{height:60px;background:#fff;vertical-align:middle;font-size:11px}.select-cell{width:42px;text-align:center!important}.select-cell input{width:15px;height:15px;accent-color:#3156d3}.owner-cell,.vehicle-cell{display:flex;flex-direction:column;gap:4px}.owner-cell b,.vehicle-cell b{font-size:12px;color:#203c5e}.owner-cell small,.vehicle-cell small{font-size:10px;color:#73859a}.vehicle-cell small:before{content:'✎ ';color:#c58a13}.master-status{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#465c74}.master-status:before{content:'';width:7px;height:7px;border-radius:50%;background:#9aa8b8}.master-status.green:before{background:#1ca36a}.master-status.blue:before{background:#2f76d2}.master-status.orange:before{background:#e5a01b}.master-delete{border:0;background:transparent;color:#b8c2ce;font-size:20px;cursor:pointer}.master-delete:hover{color:#d33}.empty-records{height:90px;text-align:center!important;color:#73849a!important}
 </style>
+
+/* Dashboard-only global search: hidden on every non-dashboard page */
+.topbar.search-dashboard-only:not(.is-dashboard) .search-box{display:none!important}
