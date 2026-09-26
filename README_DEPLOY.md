@@ -1,12 +1,9 @@
-Auto Management Web V23 - Step 2 Categories
-Deploy: the ROOT index.html is the application entry point.
-The original web/Auto_Management_Web.html is preserved.
-Step 2 contains Owner Information, Address, Insurance Details, Hypothecation, and Vehicle / Tax Details.
+# Auto Management Web V23 — One HTML Package
 
-
-## V23 Core Import / VAHAN Record Fix
-- Fixed the VAHAN workflow script parse error that prevented the record-selection renderer from initializing.
-- `.xls` legacy Excel parser is retained and validated against the supplied 110-column sales workbook.
-- Import mapping now carries all configured Master/VAHAN fields instead of only the original six fields.
-- Added editable saved mapping management under Settings → Data & Import.
-- Chassis No., Engine No. and Vehicle Model mappings are protected read-only.
+- `index.html` is the single application HTML entry point.
+- No duplicate `web/index.html` or `web/Auto_Management_Web.html` is included.
+- `extension/` contains the browser automation extension files.
+- The dashboard-only search layout fix is included: the search area remains reserved on non-dashboard pages so the Admin/notification controls do not shift.
+- VAHAN Automation page does not show the redundant back-to-automation button.
+- The redundant Save Progress button is removed.
+- Purchase/insurance/hypothecation date normalization is included.
