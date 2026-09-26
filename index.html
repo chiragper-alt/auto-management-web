@@ -847,7 +847,7 @@ function openPage(name){
       const r=selected||{};
       const values={
         customerName:r.customerName,mobile:r.mobile,purchaseDeliveryDate:r.purchaseDeliveryDate||r.purchaseDate,
-        ownershipType:r.ownershipType||'',fatherName:r.fatherName||'',
+        ownershipType:r.ownershipType||'Individual',fatherName:r.fatherName||'',
         address1:r.address1,address2:r.address2,landmark:r.landmark||'',district:r.district,assignedOffice:r.assignedOffice||r.district,state:r.state,pincode:r.pincode,
         saleAmount:r.saleAmount,vehicleClass:r.vehicleClass||r.vehicleModel,taxMode:r.taxMode,chassisNo:r.chassisNo,engineNo:r.engineNo,
         insuranceCompany:r.insuranceCompany,insurancePolicyNo:r.insurancePolicyNo,insurancePolicyDate:r.insurancePolicyDate,
@@ -887,7 +887,7 @@ function openPage(name){
           ${field('saleAmount','Sale Amount')}${field('vehicleClass','Vehicle Class')}${field('taxMode','Tax Mode')}${field('chassisNo','Chassis No.','text','readonly')}${field('engineNo','Engine No.','text','readonly')}${field('assignedOffice','Assigned Office')}
         </div></div>
         <div class="vahan-validation" id="vahanValidation"></div><div class="modal-actions"><button class="btn soft" id="vahanBack2">← Back</button><button class="btn primary" id="vahanContinue2">Validate & Continue →</button></div></div>`;
-      const ownerSel=q('#vf_ownershipType'); if(ownerSel) ownerSel.value=values.ownershipType||'';
+      const ownerSel=q('#vf_ownershipType'); if(ownerSel) ownerSel.value=values.ownershipType||'Individual'; if(!r.ownershipType && selected?.id){ window.AMData?.updateRecord?.(selected.id,{ownershipType:'Individual'}); selected={...selected,ownershipType:'Individual'}; }
       const periodSel=q('#vf_insurancePeriod'); if(periodSel) periodSel.value=values.insurancePeriod||'5 Years';
       document.querySelectorAll('#vahanStepContent #vf_').forEach(()=>{});
       document.querySelectorAll('.vahan-form-field input').forEach(el=>{el.addEventListener('input',()=>saveVahanFields(false));el.addEventListener('change',()=>saveVahanFields(false));el.addEventListener('blur',()=>saveVahanFields(false));});
@@ -961,6 +961,50 @@ body.am-non-dashboard .topbar .search-box{visibility:hidden!important;pointer-ev
   }
   document.addEventListener('DOMContentLoaded',syncTopbar);
   new MutationObserver(syncTopbar).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+})();
+</script>
+
+
+<script id="am-sidebar-menu-home-click">
+(function(){
+  function getPage(el){
+    return el && (el.getAttribute('data-page') || el.dataset.page || '');
+  }
+  document.addEventListener('click', function(e){
+    var item=e.target.closest && e.target.closest('.nav-item[data-page]');
+    if(!item) return;
+    var page=getPage(item);
+    if(!page) return;
+    var current=(window.__amCurrentPage || document.body.getAttribute('data-page') || '').toLowerCase();
+    var target=page.toLowerCase();
+    if(current===target){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      try{
+        if(typeof window.showPage==='function') window.showPage(page);
+        else if(typeof window.navigateToPage==='function') window.navigateToPage(page);
+        else {
+          var view=document.getElementById(target+'-view') || document.getElementById(page+'-view');
+          if(view){
+            document.querySelectorAll('[id$="-view"]').forEach(function(v){v.style.display='none';});
+            view.style.display='';
+          }
+        }
+        window.scrollTo({top:0,left:0,behavior:'smooth'});
+      }catch(err){}
+    }
+  }, true);
+
+  // Track the active sidebar route without changing existing navigation logic.
+  function track(){
+    var active=document.querySelector('.nav-item.active[data-page]');
+    if(active){
+      var p=active.getAttribute('data-page');
+      if(p) window.__amCurrentPage=p;
+    }
+  }
+  new MutationObserver(track).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['class']});
+  document.addEventListener('DOMContentLoaded',track);
 })();
 </script>
 
