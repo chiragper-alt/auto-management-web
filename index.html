@@ -414,7 +414,7 @@ tbody tr:hover td{background:#f8fbfe}
  const KEY='am_master_records_v1';
  const read=()=>{try{const x=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(x)?x.map(r=>{const nr={...r,assignedOffice:r.assignedOffice||r.district||''};nr.status=recordStatus(nr);return nr;}):[]}catch(e){return[]}};
  const write=x=>{localStorage.setItem(KEY,JSON.stringify(x));window.dispatchEvent(new CustomEvent('am-data-changed'));};
- const status=v=>{const x=String(v||'Ready').toLowerCase();return x.includes('partial')?'Partial':x.includes('progress')?'In Progress':x.includes('complete')?'Completed':x.includes('pending')?'Document Pending':'Ready'};
+ const status=v=>{const x=String(v||'Ready').toLowerCase();return x.includes('partial')?'Partial':x.includes('progress')?'In Progress':x.includes('complete')?'Completed':x.includes('otp')?'OTP Ready':x.includes('pending')?'Document Pending':'Ready'};
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const date=v=>v?new Date(v).toLocaleString([],{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
  const REQUIRED_RECORD_FIELDS=['purchaseDeliveryDate','customerName','ownershipType','fatherName','mobile','address1','address2','district','pincode','insuranceCompany','insurancePolicyNo','insurancePolicyDate','assignedOffice'];
@@ -424,9 +424,11 @@ tbody tr:hover td{background:#f8fbfe}
  const recordStatus=r=>{
    if(!r)return 'Partial';
    if(r.chassisCopied===true || Number(r.vahanWorkflowStep||0)>=5 || status(r.status)==='Completed') return 'Completed';
-   // Step 2 validation advances the VAHAN workflow to step 3. From that point
-   // the dashboard should show the record as In Progress while the workflow is active.
+   // Full Step 2 validation starts the main VAHAN workflow.
    if(Number(r.vahanWorkflowStep||0)>=3 || status(r.status)==='In Progress') return 'In Progress';
+   // OTP Ready is a separate pre-processing state: only Owner Information has been saved
+   // and the record is prepared for the VAHAN portal's first OTP step.
+   if(r.otpReady===true || status(r.status)==='OTP Ready') return 'OTP Ready';
    // Imported/untouched records with missing required documents remain Document Pending.
    if(!hasRequiredDocuments(r)) return 'Document Pending';
    if(REQUIRED_RECORD_FIELDS.some(k=>!hasValue(r[k]))) return 'Partial';
@@ -435,8 +437,8 @@ tbody tr:hover td{background:#f8fbfe}
  const normalizeRecordStatus=r=>({...r,status:recordStatus(r)});
  const stats=()=>{const rows=read().map(normalizeRecordStatus),t=rows.length,c=s=>rows.filter(r=>recordStatus(r)===s).length;return{rows,total:t,ready:c('Ready'),progress:c('In Progress'),completed:c('Completed'),pending:c('Document Pending'),partial:c('Partial')}};
  const pct=(n,t)=>t?Math.round(n/t*100)+'% of total':'0% of total';
- function render(){const s=stats();const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('metricTotal',s.total);set('metricReady',s.ready);set('metricProgress',s.progress);set('metricCompleted',s.completed);set('metricPending',s.pending);set('metricTotalSub',s.total?'Live local records':'No records yet');set('metricReadySub',pct(s.ready,s.total));set('metricProgressSub',pct(s.progress,s.total));set('metricCompletedSub',pct(s.completed,s.total));set('metricPendingSub',pct(s.pending,s.total));const b=document.getElementById('dashboardRecordsBody');if(b){const rows=s.rows.slice().sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0)).slice(0,10);b.innerHTML=rows.length?rows.map((r,i)=>{const st=recordStatus(r),cl=st==='Ready'?'ready':st==='In Progress'?'progress':st==='Completed'?'completed':st==='Partial'?'partial':'pending';return `<tr data-status="${esc(st)}"><td>${i+1}</td><td>${esc(r.customerName||'—')}</td><td>${esc(r.mobile||'—')}</td><td>${esc(r.vehicleModel||'—')}</td><td>${esc(r.chassisNo||'—')}</td><td>${esc(r.invoiceNo||'—')}</td><td><em class="status ${cl}">${esc(st)}</em></td><td>${esc(r.updatedOn||date(r.updatedAt)||'—')}</td><td>—</td></tr>`}).join(''):'<tr><td colspan="9" class="empty-records">No records yet. Import dealer data or create a new record.</td></tr>';}}
- function renderMaster(){const s=stats();const root=document.querySelector('#page-content');if(!root)return;const vals=root.querySelectorAll('.module-stat');[s.total,s.ready,s.progress,s.pending].forEach((v,i)=>{if(vals[i])vals[i].textContent=v});const chips={attention:s.pending,queue:s.ready,otp:0,progress:s.progress,completed:s.completed,failed:0,all:s.total};Object.entries(chips).forEach(([k,v])=>{const e=root.querySelector(`[data-count="${k}"]`);if(e)e.textContent=v});const tb=root.querySelector('.master-data-table tbody');if(!tb)return;const q=(root.querySelector('#masterRecordSearch')?.value||'').trim().toLowerCase();const filter=window.__amMasterStatusFilter||'All';const rows=s.rows.filter(r=>{const st=recordStatus(r);const text=[r.customerName,r.mobile,r.vehicleModel,r.chassisNo,r.invoiceNo,r.applicationNo,r.registrationNo].join(' ').toLowerCase();return(!q||text.includes(q))&&(filter==='All'||st===filter)}).sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0));tb.innerHTML=rows.length?rows.map(r=>{const st=recordStatus(r),cl=st==='Partial'?'orange':st==='Document Pending'?'orange':st==='In Progress'?'blue':st==='Completed'?'green':'green';return `<tr data-id="${esc(r.id)}"><td class="select-cell"><input type="checkbox" class="master-row-check" data-id="${esc(r.id)}"></td><td><div class="owner-cell"><b>${esc(r.customerName||'—')}</b><small>${esc(r.chassisNo||'—')}</small></div></td><td><div class="vehicle-cell"><b>${esc(r.vehicleModel||'M-Cycle/Scooter')}</b><small>Manual</small></div></td><td>${esc(r.mobile||'—')}</td><td>${esc(r.applicationNo||r.registrationNo||'—')}</td><td><span class="master-status pending-dot ${cl}">${esc(st)}</span></td><td>${esc(r.updatedOn||date(r.updatedAt)||'—')}</td><td class="master-view-cell"><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn soft master-view" data-id="${esc(r.id)}">View</button><button type="button" class="btn soft master-saved-docs" data-id="${esc(r.id)}">📁 Saved Documents</button></div></td></tr>`}).join(''):`<tr><td colspan="8" class="empty-records">No records match the current search/filter.</td></tr>`;}
+ function render(){const s=stats();const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('metricTotal',s.total);set('metricReady',s.ready);set('metricProgress',s.progress);set('metricCompleted',s.completed);set('metricPending',s.pending);set('metricTotalSub',s.total?'Live local records':'No records yet');set('metricReadySub',pct(s.ready,s.total));set('metricProgressSub',pct(s.progress,s.total));set('metricCompletedSub',pct(s.completed,s.total));set('metricPendingSub',pct(s.pending,s.total));const b=document.getElementById('dashboardRecordsBody');if(b){const rows=s.rows.slice().sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0)).slice(0,10);b.innerHTML=rows.length?rows.map((r,i)=>{const st=recordStatus(r),cl=st==='Ready'?'ready':st==='OTP Ready'?'otp':st==='In Progress'?'progress':st==='Completed'?'completed':st==='Partial'?'partial':'pending';return `<tr data-status="${esc(st)}"><td>${i+1}</td><td>${esc(r.customerName||'—')}</td><td>${esc(r.mobile||'—')}</td><td>${esc(r.vehicleModel||'—')}</td><td>${esc(r.chassisNo||'—')}</td><td>${esc(r.invoiceNo||'—')}</td><td><em class="status ${cl}">${esc(st)}</em></td><td>${esc(r.updatedOn||date(r.updatedAt)||'—')}</td><td>—</td></tr>`}).join(''):'<tr><td colspan="9" class="empty-records">No records yet. Import dealer data or create a new record.</td></tr>';}}
+ function renderMaster(){const s=stats();const root=document.querySelector('#page-content');if(!root)return;const vals=root.querySelectorAll('.module-stat');[s.total,s.ready,s.progress,s.pending].forEach((v,i)=>{if(vals[i])vals[i].textContent=v});const chips={attention:s.pending,queue:s.ready,otp:rows.filter(r=>recordStatus(r)==='OTP Ready').length,progress:s.progress,completed:s.completed,failed:0,all:s.total};Object.entries(chips).forEach(([k,v])=>{const e=root.querySelector(`[data-count="${k}"]`);if(e)e.textContent=v});const tb=root.querySelector('.master-data-table tbody');if(!tb)return;const q=(root.querySelector('#masterRecordSearch')?.value||'').trim().toLowerCase();const filter=window.__amMasterStatusFilter||'All';const rows=s.rows.filter(r=>{const st=recordStatus(r);const text=[r.customerName,r.mobile,r.vehicleModel,r.chassisNo,r.invoiceNo,r.applicationNo,r.registrationNo].join(' ').toLowerCase();return(!q||text.includes(q))&&(filter==='All'||st===filter)}).sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0));tb.innerHTML=rows.length?rows.map(r=>{const st=recordStatus(r),cl=st==='Partial'?'orange':st==='Document Pending'?'orange':st==='OTP Ready'?'blue':st==='In Progress'?'blue':st==='Completed'?'green':'green';return `<tr data-id="${esc(r.id)}"><td class="select-cell"><input type="checkbox" class="master-row-check" data-id="${esc(r.id)}"></td><td><div class="owner-cell"><b>${esc(r.customerName||'—')}</b><small>${esc(r.chassisNo||'—')}</small></div></td><td><div class="vehicle-cell"><b>${esc(r.vehicleModel||'M-Cycle/Scooter')}</b><small>Manual</small></div></td><td>${esc(r.mobile||'—')}</td><td>${esc(r.applicationNo||r.registrationNo||'—')}</td><td><span class="master-status pending-dot ${cl}">${esc(st)}</span></td><td>${esc(r.updatedOn||date(r.updatedAt)||'—')}</td><td class="master-view-cell"><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn soft master-view" data-id="${esc(r.id)}">View</button><button type="button" class="btn soft master-saved-docs" data-id="${esc(r.id)}">📁 Saved Documents</button></div></td></tr>`}).join(''):`<tr><td colspan="8" class="empty-records">No records match the current search/filter.</td></tr>`;}
  function add(r){const rows=read();const id=(crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()));const rec={...r,id,updatedAt:new Date().toISOString(),updatedOn:date(new Date().toISOString())};rec.status=recordStatus(rec);rows.push(rec);write(rows);return id;}
  function del(id){write(read().filter(r=>String(r.id)!==String(id)));}
  function parseCSV(t){const out=[];let row=[],c='',q=false;for(let i=0;i<t.length;i++){let x=t[i],n=t[i+1];if(x==='"'&&q&&n==='"'){c+='"';i++;continue}if(x==='"'){q=!q;continue}if(x===','&&!q){row.push(c);c='';continue}if((x==='\n'||x==='\r')&&!q){if(x==='\r'&&n==='\n')i++;row.push(c);c='';if(row.some(v=>v.trim()))out.push(row);row=[];continue}c+=x}if(c!==''||row.length){row.push(c);out.push(row)}return out;}
@@ -980,35 +982,6 @@ function openPage(name){
   const q=s=>document.querySelector(s);
   window.__amOpenSavedDocuments=recordId=>{window.__amSavedDocsRecordId=String(recordId);window.__amOpenPage?.('VAHAN Automation');};
   window.__amVahanReset=()=>{try{selected=null;step=1;prepared=false;processing=false;chassisCopied=false;render()}catch(e){}};
-  // Extension popup lookup bridge: the MV3 content script cannot directly
-  // access page-scoped AMData, so the page answers chassis lookups through
-  // window.postMessage. This keeps the extension compact and record-driven.
-  window.addEventListener('message', function(e){
-    if(e.source!==window) return;
-    const m=e.data||{};
-    if(m.type!=='AM_EXTENSION_LOOKUP_CHASSIS_REQUEST') return;
-    const target=String(m.chassis||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-    if(!target) return;
-    const rows=window.AMData?.read?.()||[];
-    const rec=rows.find(r=>String(r?.chassisNo||'').toUpperCase().replace(/[^A-Z0-9]/g,'')===target);
-    const job=rec?{...rec}:null;
-    window.postMessage({type:'AM_EXTENSION_LOOKUP_CHASSIS_RESPONSE',requestId:m.requestId,job},'*');
-  });
-
-  // Extension popup lookup bridge: the MV3 content script cannot directly
-  // access page-scoped AMData, so the page answers chassis lookups through
-  // window.postMessage.
-  window.addEventListener('message', function(e){
-    if(e.source!==window) return;
-    const m=e.data||{};
-    if(m.type!=='AM_EXTENSION_LOOKUP_CHASSIS_REQUEST') return;
-    const target=String(m.chassis||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-    if(!target) return;
-    const rows=window.AMData?.read?.()||[];
-    const rec=rows.find(r=>String(r?.chassisNo||'').toUpperCase().replace(/[^A-Z0-9]/g,'')===target);
-    window.postMessage({type:'AM_EXTENSION_LOOKUP_CHASSIS_RESPONSE',requestId:m.requestId,job:rec?{...rec}:null},'*');
-  });
-
   window.__AMVahanWebBridge = {
     startExtension(){
       if(!selected) return false;
@@ -1031,7 +1004,8 @@ function openPage(name){
     if(/vahan automation complete/i.test(st.message||'')){ processing=false; step=5; render(); }
   });
   function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-  function records(){return (window.AMData?.read?.()||[]).filter(r=>String(r.status||'Ready').toLowerCase()!=='completed');}
+  // VAHAN Automation Records is the permanent local record list. Completed records remain selectable until an explicit manual delete/clear action.
+  function records(){return (window.AMData?.read?.()||[]);}
   function render(){
     const root=q('#vahanStepContent'); if(!root)return;
     const list=records();
@@ -1084,7 +1058,7 @@ function openPage(name){
         <div class="vahan-category"><h4>Vehicle / Tax Details</h4><div class="vahan-form-grid">
           ${field('saleAmount','Sale Amount')}${field('vehicleClass','Vehicle Class')}${field('taxMode','Tax Mode')}${field('chassisNo','Chassis No.','text','readonly')}${field('engineNo','Engine No.','text','readonly')}${field('assignedOffice','Assigned Office')}
         </div></div>
-        <div class="vahan-validation" id="vahanValidation"></div><div class="modal-actions"><button class="btn soft" id="vahanBack2">← Back</button><button class="btn primary" id="vahanContinue2">Validate & Continue →</button></div></div>`;
+        <div class="vahan-validation" id="vahanValidation"></div><div class="modal-actions"><button class="btn soft" id="vahanBack2">← Back</button><button class="btn soft" id="vahanOtpReady2">✓ OTP Ready</button><button class="btn primary" id="vahanContinue2">Validate & Continue →</button></div></div>`;
       const ownerSel=q('#vf_ownershipType'); if(ownerSel) ownerSel.value=values.ownershipType||'Individual'; if(!r.ownershipType && selected?.id){ window.AMData?.updateRecord?.(selected.id,{ownershipType:'Individual'}); selected={...selected,ownershipType:'Individual'}; }
       const periodSel=q('#vf_insurancePeriod'); if(periodSel) periodSel.value=values.insurancePeriod||'5 Years';
       document.querySelectorAll('#vahanStepContent .vahan-form-field input, #vahanStepContent .vahan-form-field select').forEach(el=>{
@@ -1093,6 +1067,32 @@ function openPage(name){
         el.addEventListener('change',()=>{clearError();saveVahanFields(false)});
         el.addEventListener('blur',()=>saveVahanFields(false));
       });
+      function validateOwnerForOtp(){
+        const ownerRequired=['purchaseDeliveryDate','customerName','ownershipType','fatherName','mobile'];
+        document.querySelectorAll('#vahanStepContent .vahan-form-field').forEach(f=>f.classList.remove('validation-error'));
+        const missing=ownerRequired.filter(k=>!String(q('#vf_'+k)?.value||'').trim());
+        const box=q('#vahanValidation');
+        if(missing.length){
+          const labels=Object.fromEntries(VAHAN_FIELDS.map(([k,l])=>[k,l]));
+          if(box){box.innerHTML='<strong>Complete Owner Information before marking OTP Ready.</strong><ul>'+missing.map(k=>'<li>'+esc(labels[k]||k)+'</li>').join('')+'</ul>';box.className='vahan-validation error';}
+          missing.forEach(k=>q('#vf_'+k)?.closest('.vahan-form-field')?.classList.add('validation-error'));
+          const first=q('#vf_'+missing[0]);
+          if(first){first.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>first.focus(),250);}
+          return false;
+        }
+        if(box){box.textContent='';box.className='vahan-validation';}
+        return true;
+      }
+      q('#vahanOtpReady2').onclick=()=>{
+        if(!validateOwnerForOtp()) return;
+        saveVahanFields(false);
+        const now=new Date().toISOString();
+        const patch={otpReady:true,otpReadyAt:now,vahanWorkflowStep:2,workflowUpdatedAt:now,status:'OTP Ready'};
+        if(selected && window.AMData?.updateRecord?.(selected.id,patch)) selected={...selected,...patch};
+        prepared=false;
+        window.__amNotify?.('Owner information saved — record is ready for VAHAN OTP process.');
+        render();
+      };
       function validateStep2(){
         const missing=required.filter(k=>!String(q('#vf_'+k)?.value||'').trim());
         document.querySelectorAll('#vahanStepContent .vahan-form-field').forEach(f=>f.classList.remove('validation-error'));
@@ -1109,7 +1109,7 @@ function openPage(name){
         return false;
       }
       q('#vahanBack2').onclick=()=>{saveVahanFields(false);step=1;markWorkflowStep(1);render()};
-      q('#vahanContinue2').onclick=()=>{saveVahanFields(false);if(!validateStep2())return;prepared=true;markWorkflowStep(3);step=3;render()};
+      q('#vahanContinue2').onclick=()=>{saveVahanFields(false);if(!validateStep2())return;prepared=true;if(selected){const patch={otpReady:false,vahanWorkflowStep:3,status:'In Progress',workflowUpdatedAt:new Date().toISOString()};window.AMData?.updateRecord?.(selected.id,patch);selected={...selected,...patch};}step=3;render()};
     } else if(step===3){
       const docs=[['customerSignature','Customer Signature *'],['form20','Form 20 *'],['form21','Form 21 — Sale Certificate *'],['form22','Form 22 — Roadworthiness Certificate *'],['form34','Form 34'],['insuranceCertificate','Insurance Certificate'],['identityProof','Identity Proof *'],['addressProof','Address Proof *'],['saleInvoice','Sale Invoice'],['manufacturerInvoice',"Manufacturer's Invoice *"],['dealerInspectionReport','Dealer Inspection Report *'],['disclaimer','Disclaimer *']];
       const attached=selected?.documents||{};
