@@ -175,6 +175,151 @@
 /* Dashboard-only global search: hidden on every non-dashboard page. */
 .topbar:not(.am-dashboard-page) .search-box{visibility:hidden!important;opacity:0!important;pointer-events:none!important}
 </style>
+
+<style id="am-overall-final-polish">
+/* ===== Auto Management Web — Overall UI Final Polish ===== */
+:root{
+  --am-radius:12px;
+  --am-radius-sm:9px;
+  --am-blue:#176fe5;
+  --am-blue-dark:#1258b7;
+  --am-border:#d9e4ee;
+  --am-soft:#f6f9fc;
+  --am-shadow:0 6px 22px rgba(18,54,88,.065);
+  --am-shadow-hover:0 10px 28px rgba(18,54,88,.10)
+}
+html{scroll-behavior:smooth}
+body{background:linear-gradient(135deg,#eef4f9 0%,#f8fbfd 55%,#edf4f9 100%)}
+button,.btn,.primary-btn,.master-action,.master-tab,.icon-button{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease,color .16s ease}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid rgba(23,111,229,.18);outline-offset:2px}
+
+/* Sidebar */
+.sidebar{width:258px;padding:18px 12px 14px;box-shadow:5px 0 24px rgba(5,25,45,.10)}
+.brand{padding:2px 8px 22px}
+.brand-logo{border-radius:12px}
+.side-nav{gap:4px;margin-top:5px}
+.nav-item{height:46px;border-radius:9px;gap:13px;color:#dce8f4}
+.nav-item:hover{background:rgba(39,102,160,.30);transform:translateX(1px)}
+.nav-item.active{background:linear-gradient(90deg,#1169c2,#155b9e);box-shadow:inset 3px 0 #39a1ff,0 4px 12px rgba(8,67,125,.18)}
+.sidebar-dealer{border-radius:10px;background:rgba(16,45,71,.65)}
+
+/* Top bar */
+.main{margin-left:258px}
+.topbar{height:66px;padding:0 28px;background:rgba(255,255,255,.96);border-bottom:1px solid #d9e3ec;box-shadow:0 2px 10px rgba(19,53,84,.035)}
+.search-box{height:40px;border-radius:10px;border-color:#d5e1ec;box-shadow:0 2px 8px rgba(21,58,91,.035)}
+.search-box:focus-within{border-color:#8db9e8;box-shadow:0 0 0 3px rgba(23,111,229,.08)}
+.icon-button{border-radius:9px;padding:7px}
+.icon-button:hover{background:#f0f5fa}
+.avatar{box-shadow:0 0 0 3px #eef4fa}
+
+/* Dashboard / hero */
+.welcome{height:170px;padding:27px 34px}
+.welcome h1{font-size:32px}
+.hero-image{border-radius:12px;box-shadow:0 12px 30px rgba(22,55,88,.12)}
+.metrics{gap:12px;padding:12px 18px}
+.metric,.card{border-radius:11px;box-shadow:var(--am-shadow)}
+.metric{min-height:104px;border-color:#dce6ef}
+.metric:hover,.card:hover{box-shadow:var(--am-shadow-hover)}
+
+/* Common cards / controls */
+.card{border-color:#dce6ef}
+.card h2{font-size:18px}
+.primary-btn,.btn.primary{background:linear-gradient(180deg,#1b7bea,#0d68d5);border-radius:8px;box-shadow:0 5px 14px rgba(8,120,238,.16)}
+.primary-btn:hover,.btn.primary:hover{background:linear-gradient(180deg,#1472dd,#0b5fc4);transform:translateY(-1px);box-shadow:0 8px 18px rgba(8,120,238,.20)}
+.btn.soft,.master-action{border-color:#cedce8;background:#fff;border-radius:8px}
+.btn.soft:hover,.master-action:hover{background:#f5f9fd;border-color:#a9c3dc;transform:translateY(-1px)}
+input,select,textarea{border-radius:8px!important;border-color:#ccd9e5!important}
+input:focus,select:focus,textarea:focus{border-color:#86b3df!important;box-shadow:0 0 0 3px rgba(23,111,229,.08)!important;outline:none}
+
+/* Workflow */
+.workflow-card{padding:17px 19px}
+.workflow{margin-top:20px}
+.step>span{box-shadow:0 0 0 4px #fff,0 2px 8px rgba(22,70,112,.16)}
+.step.current>span{box-shadow:0 0 0 4px #fff,0 3px 10px rgba(8,120,238,.22)}
+.connector{border-top-width:2px}
+
+/* Tables */
+.table-wrap{border:1px solid #e1e9f0;border-radius:10px;background:#fff}
+.table-wrap table{margin:0}
+th{background:#f3f7fb}
+tbody tr:hover td{background:#f8fbfe}
+.master-table-card{border-radius:11px}
+.master-data-table th{background:#f4f8fb;height:44px}
+.master-data-table td{height:62px}
+.master-view-cell .btn,.master-saved-docs{border-radius:7px!important}
+
+/* Page headers */
+.page-content,.page-view{scroll-margin-top:80px}
+.module-card{border:1px solid #dce6ef;border-radius:12px;box-shadow:var(--am-shadow);background:#fff}
+.page-back{border-radius:8px!important}
+
+/* Record / VAHAN */
+.record-detail-actions{padding:10px 0}
+.record-section{border:1px solid #dce6ef!important;border-radius:12px!important;box-shadow:var(--am-shadow)}
+.detail-item{border-radius:9px;background:#fbfdff}
+.vstep-num{box-shadow:0 2px 8px rgba(24,67,104,.12)}
+.check span{border-radius:6px}
+.document-row{border:1px solid #e1e9f0!important;border-radius:9px!important;background:#fff!important;transition:.16s ease}
+.document-row:hover{border-color:#b8cee2!important;background:#f9fcff!important;box-shadow:0 4px 12px rgba(18,54,88,.06)}
+
+/* Saved documents */
+.saved-docs-shortcut{border-radius:8px!important}
+
+/* Settings */
+.settings-nav,.setting-section{border-radius:12px;box-shadow:var(--am-shadow)}
+.settings-nav button{border-radius:8px}
+.settings-nav button:hover{background:#f4f8fc}
+
+/* Status / pills */
+.pill{border-radius:999px!important}
+.status{border-radius:999px}
+
+/* Mobile final polish */
+@media(max-width:800px){
+  .sidebar{position:sticky;top:0;width:100%;height:auto;min-height:0;padding:10px 10px 9px;z-index:20}
+  .brand{justify-content:flex-start;padding:2px 6px 10px}
+  .brand-logo{width:150px;height:58px}
+  .side-nav{flex-direction:row;overflow-x:auto;padding:2px 1px 5px;scrollbar-width:thin}
+  .nav-item{flex:0 0 auto;height:40px;padding:0 12px;font-size:12px}
+  .nav-arrow,.sidebar-dealer,.sidebar-version{display:none}
+  .main{margin-left:0;width:100%}
+  .topbar{height:58px;padding:0 12px;position:sticky;top:0}
+  .search-box{width:100%!important;flex:1!important;min-width:0!important}
+  .top-actions{gap:6px}
+  .admin-profile .profile-text,.admin-profile .chevron{display:none}
+  .welcome{height:auto;min-height:150px;padding:20px 18px;display:block}
+  .welcome-message{position:relative;right:auto;margin-top:12px}
+  .welcome-message strong{font-size:20px}
+  .hero-image{width:58%;height:105px;opacity:.30;right:7px;top:auto;bottom:12px}
+  .metrics{grid-template-columns:1fr 1fr;gap:8px;padding:9px 10px}
+  .metric{min-height:86px;padding:10px}
+  .metric-icon{width:42px;height:42px;font-size:23px}
+  .metric strong{font-size:21px}
+  .upper-grid,.lower-grid{grid-template-columns:1fr;gap:9px;padding:0 10px 9px}
+  .workflow{grid-template-columns:1fr 1fr;row-gap:18px}
+  .connector{display:none}
+  .workflow .step{padding-right:4px}
+  .detail-list{grid-template-columns:1fr}
+  .settings-layout{grid-template-columns:1fr}
+  .settings-nav{overflow-x:auto;display:flex}
+  .settings-nav button{min-width:max-content}
+  .module-grid.cols-4{grid-template-columns:1fr}
+  .module-grid.cols-3{grid-template-columns:1fr}
+  .master-toolbar{align-items:stretch;flex-direction:column}
+  .master-search-wrap{max-width:none;width:100%}
+  .master-toolbar-actions{width:100%}
+  .master-toolbar-actions>*{flex:1}
+  .record-detail-actions .btn{width:100%}
+  .document-row{gap:10px}
+}
+@media(max-width:430px){
+  .metrics{grid-template-columns:1fr}
+  .top-actions .notification{display:none}
+  .welcome h1{font-size:27px}
+  .sun{font-size:40px}
+  .workflow{grid-template-columns:1fr}
+}
+</style>
 </head>
 <body>
 <div class="app-shell">
@@ -275,7 +420,7 @@
  const stats=()=>{const rows=read(),t=rows.length,c=s=>rows.filter(r=>status(r.status)===s).length;return{rows,total:t,ready:c('Ready'),progress:c('In Progress'),completed:c('Completed'),pending:c('Pending Docs')}};
  const pct=(n,t)=>t?Math.round(n/t*100)+'% of total':'0% of total';
  function render(){const s=stats();const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('metricTotal',s.total);set('metricReady',s.ready);set('metricProgress',s.progress);set('metricCompleted',s.completed);set('metricPending',s.pending);set('metricTotalSub',s.total?'Live local records':'No records yet');set('metricReadySub',pct(s.ready,s.total));set('metricProgressSub',pct(s.progress,s.total));set('metricCompletedSub',pct(s.completed,s.total));set('metricPendingSub',pct(s.pending,s.total));const b=document.getElementById('dashboardRecordsBody');if(b){const rows=s.rows.slice().sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0)).slice(0,10);b.innerHTML=rows.length?rows.map((r,i)=>{const st=status(r.status),cl=st==='Ready'?'ready':st==='In Progress'?'progress':st==='Completed'?'completed':'pending';return `<tr data-status="${esc(st)}"><td>${i+1}</td><td>${esc(r.customerName)}</td><td>${esc(r.mobile)}</td><td>${esc(r.vehicleModel)}</td><td>${esc(r.chassisNo)}</td><td>${esc(r.invoiceNo)}</td><td><em class="status ${cl}">${esc(st)}</em></td><td>${esc(r.updatedOn||date(r.updatedAt))}</td><td><button class="row-action" data-id="${esc(r.id)}" title="Delete">×</button></td></tr>`}).join(''):'<tr><td colspan="9" class="empty-records">No records yet. Import dealer data or create a new record.</td></tr>';}}
- function renderMaster(){const s=stats();const root=document.querySelector('#page-content');if(!root)return;const vals=root.querySelectorAll('.module-stat');[s.total,s.ready,s.progress,s.pending].forEach((v,i)=>{if(vals[i])vals[i].textContent=v});const chips={attention:s.pending,queue:s.ready,otp:0,progress:s.progress,completed:s.completed,failed:0,all:s.total};Object.entries(chips).forEach(([k,v])=>{const e=root.querySelector(`[data-count="${k}"]`);if(e)e.textContent=v});const tb=root.querySelector('.master-data-table tbody');if(!tb)return;const q=(root.querySelector('#masterRecordSearch')?.value||'').trim().toLowerCase();const filter=window.__amMasterStatusFilter||'All';const rows=s.rows.filter(r=>{const st=status(r.status);const text=[r.customerName,r.mobile,r.vehicleModel,r.chassisNo,r.invoiceNo,r.applicationNo,r.registrationNo].join(' ').toLowerCase();return(!q||text.includes(q))&&(filter==='All'||st===filter)}).sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0));tb.innerHTML=rows.length?rows.map(r=>{const st=status(r.status),cl=st==='Pending Docs'?'orange':st==='In Progress'?'blue':st==='Completed'?'green':'green';return `<tr data-id="${esc(r.id)}"><td class="select-cell"><input type="checkbox" class="master-row-check" data-id="${esc(r.id)}"></td><td><div class="owner-cell"><b>${esc(r.customerName||'—')}</b><small>${esc(r.chassisNo||'—')}</small></div></td><td><div class="vehicle-cell"><b>${esc(r.vehicleModel||'M-Cycle/Scooter')}</b><small>Manual</small></div></td><td>${esc(r.mobile||'—')}</td><td>${esc(r.applicationNo||r.registrationNo||'—')}</td><td><span class="master-status pending-dot ${cl}">${esc(st)}</span></td><td>${esc(r.updatedOn||date(r.updatedAt)||'—')}</td><td class="master-view-cell"><button type="button" class="btn soft master-view" data-id="${esc(r.id)}">View</button></td></tr>`}).join(''):`<tr><td colspan="8" class="empty-records">No records match the current search/filter.</td></tr>`;}
+ function renderMaster(){const s=stats();const root=document.querySelector('#page-content');if(!root)return;const vals=root.querySelectorAll('.module-stat');[s.total,s.ready,s.progress,s.pending].forEach((v,i)=>{if(vals[i])vals[i].textContent=v});const chips={attention:s.pending,queue:s.ready,otp:0,progress:s.progress,completed:s.completed,failed:0,all:s.total};Object.entries(chips).forEach(([k,v])=>{const e=root.querySelector(`[data-count="${k}"]`);if(e)e.textContent=v});const tb=root.querySelector('.master-data-table tbody');if(!tb)return;const q=(root.querySelector('#masterRecordSearch')?.value||'').trim().toLowerCase();const filter=window.__amMasterStatusFilter||'All';const rows=s.rows.filter(r=>{const st=status(r.status);const text=[r.customerName,r.mobile,r.vehicleModel,r.chassisNo,r.invoiceNo,r.applicationNo,r.registrationNo].join(' ').toLowerCase();return(!q||text.includes(q))&&(filter==='All'||st===filter)}).sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0));tb.innerHTML=rows.length?rows.map(r=>{const st=status(r.status),cl=st==='Pending Docs'?'orange':st==='In Progress'?'blue':st==='Completed'?'green':'green';return `<tr data-id="${esc(r.id)}"><td class="select-cell"><input type="checkbox" class="master-row-check" data-id="${esc(r.id)}"></td><td><div class="owner-cell"><b>${esc(r.customerName||'—')}</b><small>${esc(r.chassisNo||'—')}</small></div></td><td><div class="vehicle-cell"><b>${esc(r.vehicleModel||'M-Cycle/Scooter')}</b><small>Manual</small></div></td><td>${esc(r.mobile||'—')}</td><td>${esc(r.applicationNo||r.registrationNo||'—')}</td><td><span class="master-status pending-dot ${cl}">${esc(st)}</span></td><td>${esc(r.updatedOn||date(r.updatedAt)||'—')}</td><td class="master-view-cell"><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn soft master-view" data-id="${esc(r.id)}">View</button><button type="button" class="btn soft master-saved-docs" data-id="${esc(r.id)}">📁 Saved Documents</button></div></td></tr>`}).join(''):`<tr><td colspan="8" class="empty-records">No records match the current search/filter.</td></tr>`;}
  function add(r){const rows=read();const id=(crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()));rows.push({...r,id,status:status(r.status),updatedAt:new Date().toISOString(),updatedOn:date(new Date().toISOString())});write(rows);return id;}
  function del(id){write(read().filter(r=>String(r.id)!==String(id)));}
  function parseCSV(t){const out=[];let row=[],c='',q=false;for(let i=0;i<t.length;i++){let x=t[i],n=t[i+1];if(x==='"'&&q&&n==='"'){c+='"';i++;continue}if(x==='"'){q=!q;continue}if(x===','&&!q){row.push(c);c='';continue}if((x==='\n'||x==='\r')&&!q){if(x==='\r'&&n==='\n')i++;row.push(c);c='';if(row.some(v=>v.trim()))out.push(row);row=[];continue}c+=x}if(c!==''||row.length){row.push(c);out.push(row)}return out;}
@@ -662,6 +807,7 @@ function openPage(name){
       }));
       pageView.querySelector('.import-link')?.addEventListener('click',()=>window.__amOpenPage?.('Import Center'));
       pageView.querySelectorAll('.master-view').forEach(btn=>btn.addEventListener('click',()=>window.__amOpenRecordView?.(btn.dataset.id)));
+      pageView.querySelectorAll('.master-saved-docs').forEach(btn=>btn.addEventListener('click',()=>window.__amOpenSavedDocuments?.(btn.dataset.id)));
       pageView.querySelector('#masterSelectAll')?.addEventListener('change',e=>pageView.querySelectorAll('.master-row-check').forEach(c=>c.checked=e.target.checked));
     }
     pageView.querySelectorAll('.filter-input').forEach(input=>input.addEventListener('input',()=>{const q=input.value.toLowerCase(); const table=input.closest('.module-card')?.querySelector('tbody'); if(!table)return; table.querySelectorAll('tr').forEach(r=>r.style.display=!q||r.innerText.toLowerCase().includes(q)?'':'none')}));
@@ -679,7 +825,7 @@ function openPage(name){
     pageContent.innerHTML=`<div class="record-detail-shell">
       <div class="record-detail-top">
         <div><div class="record-detail-title"><h1>Record — ${value(record.chassisNo||'Case')}</h1><span class="pill ${st.toLowerCase().includes('complete')?'green':st.toLowerCase().includes('progress')?'blue':'orange'}">${value(st)}</span></div><div class="record-detail-meta">${value(record.customerName||'Customer')} • ${value(record.mobile||'No mobile')}</div></div>
-        <div class="record-detail-actions"><span class="pill">View Only</span><button type="button" class="btn soft" id="recordBackBtn">← Back to Master Records</button></div>
+        <div class="record-detail-actions"><span class="pill">View Only</span><button type="button" class="btn soft" id="recordSavedDocsBtn">📁 Saved Documents</button><button type="button" class="btn soft" id="recordBackBtn">← Back to Master Records</button></div>
       </div>
       <div class="record-section"><h3>Owner Information</h3><p class="section-note">Live Master Record view. Changes made through VAHAN Automation are reflected here automatically. This page is read-only.</p><div class="record-form-grid">
         <div class="record-field"><label>Customer Name</label><input id="rv_customerName" value="${value(record.customerName)}" readonly></div>
@@ -713,10 +859,12 @@ function openPage(name){
         <div class="record-field"><label>Status</label><select id="rv_status" disabled><option>Ready</option><option>In Progress</option><option>Completed</option><option>Pending Docs</option></select></div>
         <div class="record-field"><label>Last Updated</label><input class="record-readonly" value="${value(record.updatedOn||'—')}" readonly></div>
       </div></div>
-      <div class="record-section"><h3>Documents</h3><p class="section-note">Documents attached or updated in VAHAN Automation are shown here automatically. Master Records is view-only.</p><div class="document-list">${Object.entries(record.documents||{}).length?Object.entries(record.documents||{}).map(([k,d])=>`<div class="document-row"><div><b>${value(k)}</b><small>${value(d?.name||'Attached')}</small></div><span class="pill green">Attached</span></div>`).join(''):'<div class="record-not-found" style="padding:18px">No documents attached yet.</div>'}</div></div>
+      <div class="record-section"><h3>Documents</h3><p class="section-note">Documents attached or updated in VAHAN Automation are shown here automatically. Master Records is view-only.</p><div class="document-list">${Object.entries(record.documents||{}).length?Object.entries(record.documents||{}).map(([k,d])=>`<div class="document-row"><div><b>${value(window.__amDocumentLabel?.(k)||k)}</b><small>${value(d?.name||'Attached')}</small></div><div style="display:flex;align-items:center;gap:7px"><span class="pill green">Attached</span><button type="button" class="btn soft record-doc-view" data-record-id="${value(record.id)}" data-doc-key="${value(k)}">View</button></div></div>`).join(''):'<div class="record-not-found" style="padding:18px">No documents attached yet.</div>'}</div></div>
     </div>`;
     const statusSel=pageContent.querySelector('#rv_status'); if(statusSel)statusSel.value=st;
+    pageContent.querySelector('#recordSavedDocsBtn')?.addEventListener('click',()=>window.__amOpenSavedDocuments?.(record.id));
     pageContent.querySelector('#recordBackBtn')?.addEventListener('click',()=>openPage('Master Records'));
+    pageContent.querySelectorAll('.record-doc-view').forEach(btn=>btn.addEventListener('click',()=>window.__amViewSavedDocument?.(btn.dataset.recordId,btn.dataset.docKey)));
     // Master Record detail is intentionally read-only. All edits/saves happen in VAHAN Automation and sync to AMData.
 
   }
@@ -801,6 +949,9 @@ function openPage(name){
   function openDocDB(){return new Promise((resolve,reject)=>{if(!window.indexedDB){reject(new Error('IndexedDB is not available'));return}const r=indexedDB.open(DOC_DB,1);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains('files'))db.createObjectStore('files',{keyPath:'key'})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error||new Error('Document storage unavailable'));});}
   async function saveDocumentBinary(recordId,docKey,file){const db=await openDocDB();return new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put({key:String(recordId)+'::'+docKey,recordId:String(recordId),docKey,file,name:file.name,type:file.type||'',size:file.size||0,savedAt:new Date().toISOString()});tx.oncomplete=()=>{db.close();resolve(true)};tx.onerror=()=>{db.close();reject(tx.error||new Error('Document save failed'))};});}
   async function getDocumentBinary(recordId,docKey){try{const db=await openDocDB();return await new Promise((resolve,reject)=>{const tx=db.transaction('files','readonly');const req=tx.objectStore('files').get(String(recordId)+'::'+docKey);req.onsuccess=()=>{db.close();resolve(req.result||null)};req.onerror=()=>{db.close();reject(req.error)}})}catch(e){return null}}
+  const DOC_LABELS={customerSignature:'Customer Signature',form20:'Form 20',form21:'Form 21 — Sale Certificate',form22:'Form 22 — Roadworthiness Certificate',insuranceCertificate:'Insurance Certificate',identityProof:'Identity Proof',addressProof:'Address Proof',saleInvoice:'Sale Invoice',manufacturerInvoice:"Manufacturer's Invoice",dealerInspectionReport:'Dealer Inspection Report',disclaimer:'Disclaimer'};
+  window.__amDocumentLabel=k=>DOC_LABELS[k]||k;
+  window.__amViewSavedDocument=async(recordId,docKey)=>{const meta=await getDocumentBinary(recordId,docKey);if(!meta?.file){window.__amNotify?.('Saved document file is not available');return}try{const blob=meta.file instanceof Blob?meta.file:new Blob([meta.file],{type:meta.type||'application/octet-stream'});const url=URL.createObjectURL(blob);const w=window.open(url,'_blank');if(!w){const a=document.createElement('a');a.href=url;a.download=meta.name||'document';a.click();}setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){window.__amNotify?.('Unable to open saved document');}};
   function saveVahanFields(showToast=false){
     if(!selected||!q('#vahanStepContent')) return false;
     const patch={}; let changed=false;
@@ -811,6 +962,7 @@ function openPage(name){
   function markWorkflowStep(stepNo){if(!selected)return;window.AMData?.updateRecord?.(selected.id,{vahanWorkflowStep:stepNo,workflowUpdatedAt:new Date().toISOString()})}
   let selected=null, step=1, prepared=false, processing=false, chassisCopied=false;
   const q=s=>document.querySelector(s);
+  window.__amOpenSavedDocuments=recordId=>{window.__amSavedDocsRecordId=String(recordId);window.__amOpenPage?.('VAHAN Automation');};
   window.__amVahanReset=()=>{try{selected=null;step=1;prepared=false;processing=false;chassisCopied=false;render()}catch(e){}};
   window.__AMVahanWebBridge = {
     startExtension(){
@@ -839,9 +991,10 @@ function openPage(name){
     const root=q('#vahanStepContent'); if(!root)return;
     const list=records();
     if(step===1){
-      root.innerHTML=`<div class="module-grid cols-2"><div class="module-card" style="box-shadow:none;background:#f8fbfe"><div class="filter-bar"><input class="filter-input" id="vahanRecordSearch" placeholder="Search customer / chassis / invoice..."><span class="pill green">${list.length} Available</span></div><div id="vahanRecordList" style="margin-top:12px;max-height:390px;overflow:auto">${list.length?list.map((r,i)=>`<button class="vahan-record-row ${selected&&selected.id===r.id?'selected':''}" data-id="${esc(r.id)}"><span class="vahan-record-check">${selected&&selected.id===r.id?'✓':''}</span><span><b>${esc(r.customerName||'Unnamed')}</b><small>${esc(r.chassisNo||'')} • ${esc(r.invoiceNo||'')}</small></span><span class="pill ${String(r.status||'Ready').toLowerCase().replace(/\s/g,'-')}">${esc(r.status||'Ready')}</span></button>`).join(''):'<div class="empty-records">No records available. Import records from Import Center first.</div>'}</div></div><div class="module-card" style="box-shadow:none;background:#f8fbfe"><h3>Selected Record</h3><div id="vahanSelectedSummary" style="margin-top:13px">${selected?`<div class="detail-list">${[['Customer',selected.customerName],['Mobile',selected.mobile],['Vehicle',selected.vehicleModel],['Chassis',selected.chassisNo],['Invoice',selected.invoiceNo],['Assigned Office',selected.assignedOffice||selected.district],['Status',selected.status]].map(x=>`<div class="detail-item"><label>${x[0]}</label><b>${esc(x[1]||'—')}</b></div>`).join('')}</div><button class="btn primary" id="vahanContinue1" style="margin-top:14px">Continue to Data Preparation →</button>`:'<div class="empty-records">Select a record to begin VAHAN processing.</div>'}</div></div></div>`;
+      root.innerHTML=`<div class="module-grid cols-2"><div class="module-card" style="box-shadow:none;background:#f8fbfe"><div class="filter-bar"><input class="filter-input" id="vahanRecordSearch" placeholder="Search customer / chassis / invoice..."><span class="pill green">${list.length} Available</span></div><div id="vahanRecordList" style="margin-top:12px;max-height:390px;overflow:auto">${list.length?list.map((r,i)=>`<button class="vahan-record-row ${selected&&selected.id===r.id?'selected':''}" data-id="${esc(r.id)}"><span class="vahan-record-check">${selected&&selected.id===r.id?'✓':''}</span><span><b>${esc(r.customerName||'Unnamed')}</b><small>${esc(r.chassisNo||'')} • ${esc(r.invoiceNo||'')}</small></span><span class="pill ${String(r.status||'Ready').toLowerCase().replace(/\s/g,'-')}">${esc(r.status||'Ready')}</span></button>`).join(''):'<div class="empty-records">No records available. Import records from Import Center first.</div>'}</div></div><div class="module-card" style="box-shadow:none;background:#f8fbfe"><h3>Selected Record</h3><div id="vahanSelectedSummary" style="margin-top:13px">${selected?`<div class="detail-list">${[['Customer',selected.customerName],['Mobile',selected.mobile],['Vehicle',selected.vehicleModel],['Chassis',selected.chassisNo],['Invoice',selected.invoiceNo],['Assigned Office',selected.assignedOffice||selected.district],['Status',selected.status]].map(x=>`<div class="detail-item"><label>${x[0]}</label><b>${esc(x[1]||'—')}</b></div>`).join('')}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn soft" id="vahanSavedDocs1" type="button">📁 Saved Documents</button><button class="btn primary" id="vahanContinue1" type="button">Continue to Data Preparation →</button></div>`:'<div class="empty-records">Select a record to begin VAHAN processing.</div>'}</div></div></div>`;
       q('#vahanRecordSearch')?.addEventListener('input',e=>{const term=e.target.value.toLowerCase();document.querySelectorAll('.vahan-record-row').forEach(b=>b.style.display=b.innerText.toLowerCase().includes(term)?'flex':'none')});
       document.querySelectorAll('.vahan-record-row').forEach(b=>b.addEventListener('click',()=>{selected=list.find(r=>String(r.id)===String(b.dataset.id));chassisCopied=false;if(selected){markWorkflowStep(1)};render()}));
+      q('#vahanSavedDocs1')?.addEventListener('click',()=>{step=3;render()});
       q('#vahanContinue1')?.addEventListener('click',()=>{markWorkflowStep(2);step=2;render()});
     } else if(step===2){
       const r=selected||{};
@@ -896,7 +1049,8 @@ function openPage(name){
     } else if(step===3){
       const docs=[['customerSignature','Customer Signature *'],['form20','Form 20 *'],['form21','Form 21 — Sale Certificate *'],['form22','Form 22 — Roadworthiness Certificate *'],['insuranceCertificate','Insurance Certificate'],['identityProof','Identity Proof *'],['addressProof','Address Proof *'],['saleInvoice','Sale Invoice'],['manufacturerInvoice',"Manufacturer's Invoice *"],['dealerInspectionReport','Dealer Inspection Report *'],['disclaimer','Disclaimer *']];
       const attached=selected?.documents||{};
-      root.innerHTML=`<div class="module-grid cols-2"><div class="module-card" style="box-shadow:none;background:#f8fbfe"><div class="module-row"><div class="module-icon">3</div><div><h3>Step 3 — Documents</h3><p>Attach the documents related to this customer before starting VAHAN automation.</p></div></div><div class="document-list" style="margin-top:15px">${docs.map(([k,label])=>`<div class="document-row"><div><b>${label}</b><small>${attached[k]?.name?esc(attached[k].name):'No document attached'}</small></div><label class="btn soft">${attached[k]?.name?'Replace':'Attach'}<input type="file" class="vahan-doc-input" data-doc="${k}" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none"></label></div>`).join('')}</div><div class="document-note">Documents are saved persistently in this browser for this customer record. The file itself is stored locally and remains available after moving between steps or reopening the record on this device.</div><div class="modal-actions"><button class="btn soft" id="vahanBack3">← Back</button><button class="btn primary" id="vahanContinue3">Continue to VAHAN Processing →</button></div></div><div class="module-card" style="box-shadow:none;background:#f8fbfe"><h3>Document Checklist</h3><div class="check-list" style="margin-top:13px">${docs.map(([k,label])=>`<div class="check ${attached[k]?.name?'ok':''}"><span>${attached[k]?.name?'✓':''}</span> ${label}</div>`).join('')}<div class="check"><span></span> Operator can review documents before processing</div></div></div></div>`;
+      root.innerHTML=`<div class="module-grid cols-2"><div class="module-card" style="box-shadow:none;background:#f8fbfe"><div class="module-row"><div class="module-icon">3</div><div><h3>Step 3 — Documents</h3><p>Attach the documents related to this customer before starting VAHAN automation.</p></div></div><div class="document-list" style="margin-top:15px">${docs.map(([k,label])=>`<div class="document-row"><div><b>${label}</b><small>${attached[k]?.name?esc(attached[k].name):'No document attached'}</small></div><div style="display:flex;align-items:center;gap:7px">${attached[k]?.name?`<button type="button" class="btn soft vahan-doc-view" data-doc="${k}">View</button>`:''}<label class="btn soft">${attached[k]?.name?'Replace':'Attach'}<input type="file" class="vahan-doc-input" data-doc="${k}" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none"></label></div></div>`).join('')}</div><div class="document-note">Documents are saved persistently in this browser for this customer record. The file itself is stored locally and remains available after moving between steps or reopening the record on this device.</div><div class="modal-actions"><button class="btn soft" id="vahanBack3">← Back</button><button class="btn primary" id="vahanContinue3">Continue to VAHAN Processing →</button></div></div><div class="module-card" style="box-shadow:none;background:#f8fbfe"><h3>Document Checklist</h3><div class="check-list" style="margin-top:13px">${docs.map(([k,label])=>`<div class="check ${attached[k]?.name?'ok':''}"><span>${attached[k]?.name?'✓':''}</span> ${label}</div>`).join('')}<div class="check"><span></span> Operator can review documents before processing</div></div></div></div>`;
+      document.querySelectorAll('.vahan-doc-view').forEach(btn=>btn.addEventListener('click',()=>window.__amViewSavedDocument?.(selected.id,btn.dataset.doc)));
       document.querySelectorAll('.vahan-doc-input').forEach(inp=>inp.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f||!selected)return;const key=e.target.dataset.doc;const meta={name:f.name,type:f.type||'',size:f.size||0,attachedOn:new Date().toISOString(),saved:true};try{await saveDocumentBinary(selected.id,key,f);selected={...selected,documents:{...(selected.documents||{}),[key]:meta}};window.AMData?.updateRecord?.(selected.id,{documents:selected.documents});window.__amNotify?.(meta.name+' saved');}catch(err){console.error(err);window.__amNotify?.('Document save failed: '+(err.message||err));}render()}));
       q('#vahanBack3').onclick=()=>{markWorkflowStep(2);step=2;render()};
       q('#vahanContinue3').onclick=()=>{markWorkflowStep(4);step=4;render()};
@@ -937,7 +1091,7 @@ function openPage(name){
     document.querySelectorAll('#vahanStepper .vstep').forEach(v=>{v.classList.toggle('active',Number(v.dataset.step)===step);v.classList.toggle('done',Number(v.dataset.step)<step)});
     const state=q('#vahanAutomationState');if(state)state.textContent=step===5?'Verification':step===4?'Processing':step===3?'Documents':step===2?'Preparation':'Ready';
   }
-  function init(){if(!q('#vahanStepContent'))return;render();q('#vahanStartBtn')?.addEventListener('click',()=>{step=1;selected=null;render();window.__amNotify?.('Select a Master Record to start VAHAN workflow')});}
+  function init(){if(!q('#vahanStepContent'))return;const pending=window.__amSavedDocsRecordId;if(pending){const found=(window.AMData?.read?.()||[]).find(r=>String(r.id)===String(pending));window.__amSavedDocsRecordId=null;if(found){selected=found;step=3;prepared=true;render();return}}render();q('#vahanStartBtn')?.addEventListener('click',()=>{step=1;selected=null;render();window.__amNotify?.('Select a Master Record to start VAHAN workflow')});}
   window.addEventListener('am-page-ready',()=>{if(q('#vahanStepContent'))init()});
   document.addEventListener('click',e=>{const s=e.target.closest('#vahanStepper .vstep');if(s){const n=Number(s.dataset.step);if(n<=step){step=n;render()}}});
 })();
@@ -1007,6 +1161,37 @@ body.am-non-dashboard .topbar .search-box{visibility:hidden!important;pointer-ev
   document.addEventListener('DOMContentLoaded',track);
 })();
 </script>
+
+
+<style>
+.saved-docs-shortcut{white-space:nowrap}.record-detail-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.document-row>div:last-child{flex-shrink:0}@media(max-width:700px){.master-view-cell>div{flex-direction:column;align-items:stretch}.master-view-cell .btn{width:100%}.record-detail-actions{width:100%}.record-detail-actions .btn{width:100%}.document-row{align-items:flex-start}.document-row>div:last-child{display:flex;flex-wrap:wrap;justify-content:flex-end}.document-row .btn{min-height:36px}}
+</style>
+
+<style id="am-document-viewer-css">
+#amDocumentViewer{position:fixed;inset:0;z-index:99999;display:none;background:rgba(4,15,28,.72);backdrop-filter:blur(4px);padding:20px;align-items:center;justify-content:center}
+#amDocumentViewer.show{display:flex}
+.am-document-modal{width:min(1100px,100%);height:min(88vh,900px);background:#fff;border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden}
+.am-document-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid #dfe7ef;background:#f8fbfe}
+.am-document-title{font-size:13px;font-weight:700;color:#17324d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.am-document-actions{display:flex;gap:7px;flex-shrink:0}.am-document-actions button{border:1px solid #d4e0eb;background:#fff;border-radius:7px;padding:7px 10px;cursor:pointer;color:#24415e}.am-document-actions .close{font-size:18px;line-height:1;padding:5px 9px}
+#amDocumentViewerBody{flex:1;min-height:0;background:#edf3f8;display:flex;align-items:center;justify-content:center;overflow:auto;padding:14px}
+.am-document-frame{width:100%;height:100%;border:0;background:#fff}.am-document-image{max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 5px 20px rgba(20,45,70,.12);background:#fff}.am-document-unsupported{text-align:center;color:#61758c;background:#fff;border:1px solid #dbe5ee;border-radius:12px;padding:30px;max-width:360px}.am-document-unsupported strong{display:block;color:#243f5b;margin:8px 0 4px}.am-document-unsupported p{font-size:12px;margin:0}
+@media(max-width:800px){#amDocumentViewer{padding:8px}.am-document-modal{height:94vh;border-radius:10px}.am-document-head{padding:10px 11px}.am-document-actions button{padding:7px 8px;font-size:11px}.am-document-title{max-width:42vw}#amDocumentViewerBody{padding:7px}}
+</style>
+
+<div id="amDocumentViewer" aria-hidden="true">
+  <div class="am-document-modal" role="dialog" aria-modal="true" aria-label="Document Viewer">
+    <div class="am-document-head">
+      <div class="am-document-title" id="amDocumentViewerTitle">Saved Document</div>
+      <div class="am-document-actions">
+        <button type="button" id="amDocumentViewerOpen">Open</button>
+        <button type="button" id="amDocumentViewerDownload">Download</button>
+        <button type="button" class="close" onclick="window.__amCloseDocumentViewer?.()" aria-label="Close">×</button>
+      </div>
+    </div>
+    <div id="amDocumentViewerBody"></div>
+  </div>
+</div>
 
 </body>
 </html>
