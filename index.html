@@ -424,11 +424,12 @@ tbody tr:hover td{background:#f8fbfe}
  const recordStatus=r=>{
    if(!r)return 'Partial';
    if(r.chassisCopied===true || Number(r.vahanWorkflowStep||0)>=5 || status(r.status)==='Completed') return 'Completed';
+   // OTP Ready is a separate pre-processing state: only Owner Information has been saved
+   // and the record is prepared for the VAHAN portal's first OTP step. It takes precedence
+   // while the user continues through Documents without full Step 2 data.
+   if(r.otpReady===true || status(r.status)==='OTP Ready') return 'OTP Ready';
    // Full Step 2 validation starts the main VAHAN workflow.
    if(Number(r.vahanWorkflowStep||0)>=3 || status(r.status)==='In Progress') return 'In Progress';
-   // OTP Ready is a separate pre-processing state: only Owner Information has been saved
-   // and the record is prepared for the VAHAN portal's first OTP step.
-   if(r.otpReady===true || status(r.status)==='OTP Ready') return 'OTP Ready';
    // Imported/untouched records with missing required documents remain Document Pending.
    if(!hasRequiredDocuments(r)) return 'Document Pending';
    if(REQUIRED_RECORD_FIELDS.some(k=>!hasValue(r[k]))) return 'Partial';
@@ -584,6 +585,16 @@ tbody tr:hover td{background:#f8fbfe}
 window.AMXLSX={async parse(buf){const u=new Uint8Array(buf),dv=new DataView(buf);const dec=new TextDecoder('utf-8');function u16(i){return dv.getUint16(i,true)}function u32(i){return dv.getUint32(i,true)}function str(i,n){return dec.decode(u.slice(i,i+n))}let eoc=-1;for(let i=u.length-22;i>=0&&i>u.length-65558;i--){if(u32(i)===0x06054b50){eoc=i;break}}if(eoc<0)throw Error('Invalid XLSX file');const cdOff=u32(eoc+16),cdSize=u32(eoc+12);let p=cdOff,files={};while(p<cdOff+cdSize){if(u32(p)!==0x02014b50)break;const method=u16(p+10),cs=u32(p+20),us=u32(p+24),nl=u16(p+28),xl=u16(p+30),cl=u16(p+32),lh=u32(p+42),name=str(p+46,nl);files[name]={method,cs,us,lh};p+=46+nl+xl+cl}async function data(name){const f=files[name];if(!f)throw Error('Missing '+name);const q=f.lh,nl=u16(q+26),xl=u16(q+28),start=q+30+nl+xl,raw=u.slice(start,start+f.cs);if(f.method===0)return raw;if(f.method===8){const ds=new DecompressionStream('deflate-raw');return new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(ds)).arrayBuffer())}throw Error('Unsupported XLSX compression')}function xml(a){return dec.decode(a)}const ss=[];if(files['xl/sharedStrings.xml']){const x=xml(await data('xl/sharedStrings.xml'));for(const si of x.match(/<si[\s\S]*?<\/si>/g)||[]){ss.push([...si.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(m=>m[1]).join('').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"'))}}let sheet=Object.keys(files).find(k=>/^xl\/worksheets\/sheet\d+\.xml$/i.test(k));if(!sheet)throw Error('Worksheet not found');const x=xml(await data(sheet)),rows=[];for(const rm of x.match(/<row[\s\S]*?<\/row>/g)||[]){const cells=[];for(const cm of rm.match(/<c[\s\S]*?<\/c>/g)||[]){const ref=(cm.match(/\br="([A-Z]+)\d+"/)||[])[1]||'';let col=0;for(const ch of ref)col=col*26+ch.charCodeAt(0)-64;col--;const type=(cm.match(/\bt="([^"]+)"/)||[])[1]||'';const vm=(cm.match(/<v>([\s\S]*?)<\/v>/)||[])[1]??'';const im=(cm.match(/<is[\s\S]*?<t[^>]*>([\s\S]*?)<\/t>[\s\S]*?<\/is>/)||[])[1];let v=type==='s'?(ss[Number(vm)]??''):type==='inlineStr'?(im??''):vm;if(type!=='s'&&type!=='inlineStr'&&/^[-+]?\d+(\.\d+)?$/.test(v))v=Number(v);cells[col]=v}while(cells.length&&cells[cells.length-1]===undefined)cells.pop();rows.push(cells)}return rows}};
 window.__AMImportMapping={getDefs:()=>FIELD_DEFS,getMappings:savedMappings,save:(headers,m)=>saveMapping(headers,m),saveAndUpdate:(headers,m)=>{saveMapping(headers,m);return updateRecordsFromMapping(headers,m)},signature:headerSignature};
  window.AMData={read,write,stats,recordStatus,addRecord:add,deleteRecord:del,getRecord:id=>read().find(r=>String(r.id)===String(id))||null,updateRecord:(id,patch)=>{const rows=read();const i=rows.findIndex(r=>String(r.id)===String(id));if(i<0)return false;rows[i]={...rows[i],...patch,updatedAt:new Date().toISOString(),updatedOn:date(new Date().toISOString())};write(rows);return true;},importRows,importCSV,importXLSX,renderDashboard:render,renderMasterPage:renderMaster};
+ // Extension bridge: resolve chassis from the same local master-record store used by the web app.
+ window.addEventListener('message',e=>{
+   const m=e.data||{};
+   if(m.type!=='AM_EXTENSION_LOOKUP_CHASSIS_REQUEST') return;
+   const needle=String(m.chassis||'').trim().toUpperCase().replace(/\s+/g,'');
+   const rows=read();
+   const found=rows.find(r=>String(r.chassisNo||r.chasisNo||'').trim().toUpperCase().replace(/\s+/g,'')===needle);
+   window.postMessage({type:'AM_EXTENSION_LOOKUP_CHASSIS_RESPONSE',requestId:m.requestId,job:found||null},'*');
+ });
+
  window.addEventListener('am-data-changed',()=>{render();renderMaster();});
  document.addEventListener('click',e=>{const d=e.target.closest('.row-action,.record-delete');if(d){del(d.dataset.id);window.__amNotify?.('Record deleted');render();renderMaster();}});
  window.addEventListener('am-dashboard-filter',e=>{const f=e.detail;document.querySelectorAll('#dashboardRecordsBody tr[data-status]').forEach(r=>r.classList.toggle('filtered-out',f!=='All'&&r.dataset.status!==f));});
@@ -1089,8 +1100,9 @@ function openPage(name){
         const now=new Date().toISOString();
         const patch={otpReady:true,otpReadyAt:now,vahanWorkflowStep:2,workflowUpdatedAt:now,status:'OTP Ready'};
         if(selected && window.AMData?.updateRecord?.(selected.id,patch)) selected={...selected,...patch};
-        prepared=false;
-        window.__amNotify?.('Owner information saved — record is ready for VAHAN OTP process.');
+        prepared=true;
+        window.__amNotify?.('✓ OTP Ready — Owner information saved. Insurance details are not required for this stage.');
+        step=3;
         render();
       };
       function validateStep2(){
