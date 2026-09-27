@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Auto Management Web</title>
+<style>
+*{box-sizing:border-box}body{margin:0;width:310px;background:#f5f8fc;color:#17334d;font-family:Arial,sans-serif}
+.card{padding:16px}.brand{display:flex;align-items:center;gap:10px;margin-bottom:14px}.logo{width:34px;height:34px;border-radius:10px;background:#0c2340;display:grid;place-items:center;color:#fff;font-weight:800;font-size:17px}.title{font-weight:800;font-size:14px}.sub{font-size:10px;color:#71839a;margin-top:2px}.label{font-size:11px;font-weight:700;margin:0 0 6px}.row{display:flex;gap:8px}.input{width:100%;height:40px;border:1px solid #d6e0eb;border-radius:10px;padding:0 11px;font-size:13px;outline:none;background:#fff}.input:focus{border-color:#1877e8;box-shadow:0 0 0 3px rgba(24,119,232,.1)}button{height:40px;border:0;border-radius:10px;padding:0 16px;background:#126be8;color:#fff;font-weight:800;cursor:pointer;white-space:nowrap}button:disabled{opacity:.55;cursor:default}.status{margin-top:11px;padding:9px 10px;border-radius:9px;background:#edf3fa;color:#52677f;font-size:11px;line-height:1.35}.status.good{background:#edf9f2;color:#177245}.status.err{background:#fff1f1;color:#b42318}.hint{font-size:10px;color:#8494a7;margin-top:10px;line-height:1.4}
+</style></head><body><div class="card"><div class="brand"><div class="logo">A</div><div><div class="title">Auto Management Web</div><div class="sub">VAHAN Autofill Extension</div></div></div><div class="label">Chassis No.</div><div class="row"><input id="chassis" class="input" autocomplete="off" placeholder="Enter chassis number"><button id="go">GO</button></div><div id="status" class="status">Ready — enter chassis number.</div><div class="hint">The matching record is read from Auto Management Web. VAHAN final Save/Submit, CAPTCHA and OTP remain manual.</div></div><script src="popup.js"></script></body></html>

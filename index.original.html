@@ -995,20 +995,6 @@ function openPage(name){
     window.postMessage({type:'AM_EXTENSION_LOOKUP_CHASSIS_RESPONSE',requestId:m.requestId,job},'*');
   });
 
-  // Extension popup lookup bridge: the MV3 content script cannot directly
-  // access page-scoped AMData, so the page answers chassis lookups through
-  // window.postMessage.
-  window.addEventListener('message', function(e){
-    if(e.source!==window) return;
-    const m=e.data||{};
-    if(m.type!=='AM_EXTENSION_LOOKUP_CHASSIS_REQUEST') return;
-    const target=String(m.chassis||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-    if(!target) return;
-    const rows=window.AMData?.read?.()||[];
-    const rec=rows.find(r=>String(r?.chassisNo||'').toUpperCase().replace(/[^A-Z0-9]/g,'')===target);
-    window.postMessage({type:'AM_EXTENSION_LOOKUP_CHASSIS_RESPONSE',requestId:m.requestId,job:rec?{...rec}:null},'*');
-  });
-
   window.__AMVahanWebBridge = {
     startExtension(){
       if(!selected) return false;
