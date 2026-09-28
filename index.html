@@ -428,11 +428,68 @@ tbody tr:hover td{background:#f8fbfe}
   window.__AMStorageMode=native?'persistent':'memory-fallback';
 })();
 </script>
+<script id="am-persistent-file-db">
+(function(){
+  if(window.__AM_PERSISTENT_FILE_DB__) return;
+  const KEY='am_master_records_v1';
+  let handle=null;
+  let connected=false;
+  let syncing=false;
+  function supported(){return !!window.showOpenFilePicker && !!window.showSaveFilePicker;}
+  async function readFile(){
+    if(!handle) return null;
+    const file=await handle.getFile();
+    const text=await file.text();
+    if(!text.trim()) return [];
+    const data=JSON.parse(text);
+    return Array.isArray(data.records)?data.records:[];
+  }
+  async function writeFile(records){
+    if(!handle||syncing)return;
+    syncing=true;
+    try{
+      const perm=await handle.queryPermission?.({mode:'readwrite'});
+      if(perm!=='granted'){
+        const req=await handle.requestPermission?.({mode:'readwrite'});
+        if(req!=='granted') throw new Error('Database file write permission was not granted.');
+      }
+      const w=await handle.createWritable();
+      await w.write(JSON.stringify({format:'Auto Management Database',version:1,updatedAt:new Date().toISOString(),records},null,2));
+      await w.close();
+      connected=true;
+      window.dispatchEvent(new CustomEvent('am-persistent-db-status',{detail:{connected:true}}));
+    }finally{syncing=false;}
+  }
+  async function connect(){
+    if(!supported()) throw new Error('Persistent database files require a Chromium browser with File System Access support.');
+    let h;
+    try{
+      const arr=await window.showOpenFilePicker({multiple:false,types:[{description:'Auto Management Database',accept:{'application/json':['.json']}}]});
+      h=arr[0];
+    }catch(e){
+      if(e?.name==='AbortError') throw e;
+      h=await window.showSaveFilePicker({suggestedName:'auto-management-database.json',types:[{description:'Auto Management Database',accept:{'application/json':['.json']}}]});
+    }
+    handle=h;
+    const rows=await readFile();
+    connected=true;
+    localStorage.setItem('am_persistent_db_connected','1');
+    window.dispatchEvent(new CustomEvent('am-persistent-db-loaded',{detail:{records:rows}}));
+    window.dispatchEvent(new CustomEvent('am-persistent-db-status',{detail:{connected:true,name:h.name}}));
+    return rows;
+  }
+  async function exportCurrent(records){
+    if(!handle) return false;
+    await writeFile(records); return true;
+  }
+  window.__AM_PERSISTENT_FILE_DB__={supported,connect,readFile,writeFile,exportCurrent,isConnected:()=>connected,getName:()=>handle?.name||''};
+})();
+</script>
 <script>
 (function(){
  const KEY='am_master_records_v1';
  const read=()=>{try{const x=JSON.parse(AMStorage.getItem(KEY)||'[]');return Array.isArray(x)?x.map(r=>{const nr={...r,assignedOffice:r.assignedOffice||r.district||''};nr.status=recordStatus(nr);return nr;}):[]}catch(e){return[]}};
- const write=x=>{AMStorage.setItem(KEY,JSON.stringify(x));window.dispatchEvent(new CustomEvent('am-data-changed'));};
+ const write=x=>{AMStorage.setItem(KEY,JSON.stringify(x));try{window.__AM_PERSISTENT_FILE_DB__?.writeFile?.(x)}catch(e){}window.dispatchEvent(new CustomEvent('am-data-changed'));};
  const status=v=>{const x=String(v||'Ready').toLowerCase();return x.includes('partial')?'Partial':x.includes('progress')?'In Progress':x.includes('complete')?'Completed':x.includes('otp')?'OTP Ready':x.includes('pending')?'Document Pending':'Ready'};
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const date=v=>v?new Date(v).toLocaleString([],{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
@@ -604,6 +661,7 @@ tbody tr:hover td{background:#f8fbfe}
 window.AMXLSX={async parse(buf){const u=new Uint8Array(buf),dv=new DataView(buf);const dec=new TextDecoder('utf-8');function u16(i){return dv.getUint16(i,true)}function u32(i){return dv.getUint32(i,true)}function str(i,n){return dec.decode(u.slice(i,i+n))}let eoc=-1;for(let i=u.length-22;i>=0&&i>u.length-65558;i--){if(u32(i)===0x06054b50){eoc=i;break}}if(eoc<0)throw Error('Invalid XLSX file');const cdOff=u32(eoc+16),cdSize=u32(eoc+12);let p=cdOff,files={};while(p<cdOff+cdSize){if(u32(p)!==0x02014b50)break;const method=u16(p+10),cs=u32(p+20),us=u32(p+24),nl=u16(p+28),xl=u16(p+30),cl=u16(p+32),lh=u32(p+42),name=str(p+46,nl);files[name]={method,cs,us,lh};p+=46+nl+xl+cl}async function data(name){const f=files[name];if(!f)throw Error('Missing '+name);const q=f.lh,nl=u16(q+26),xl=u16(q+28),start=q+30+nl+xl,raw=u.slice(start,start+f.cs);if(f.method===0)return raw;if(f.method===8){const ds=new DecompressionStream('deflate-raw');return new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(ds)).arrayBuffer())}throw Error('Unsupported XLSX compression')}function xml(a){return dec.decode(a)}const ss=[];if(files['xl/sharedStrings.xml']){const x=xml(await data('xl/sharedStrings.xml'));for(const si of x.match(/<si[\s\S]*?<\/si>/g)||[]){ss.push([...si.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(m=>m[1]).join('').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"'))}}let sheet=Object.keys(files).find(k=>/^xl\/worksheets\/sheet\d+\.xml$/i.test(k));if(!sheet)throw Error('Worksheet not found');const x=xml(await data(sheet)),rows=[];for(const rm of x.match(/<row[\s\S]*?<\/row>/g)||[]){const cells=[];for(const cm of rm.match(/<c[\s\S]*?<\/c>/g)||[]){const ref=(cm.match(/\br="([A-Z]+)\d+"/)||[])[1]||'';let col=0;for(const ch of ref)col=col*26+ch.charCodeAt(0)-64;col--;const type=(cm.match(/\bt="([^"]+)"/)||[])[1]||'';const vm=(cm.match(/<v>([\s\S]*?)<\/v>/)||[])[1]??'';const im=(cm.match(/<is[\s\S]*?<t[^>]*>([\s\S]*?)<\/t>[\s\S]*?<\/is>/)||[])[1];let v=type==='s'?(ss[Number(vm)]??''):type==='inlineStr'?(im??''):vm;if(type!=='s'&&type!=='inlineStr'&&/^[-+]?\d+(\.\d+)?$/.test(v))v=Number(v);cells[col]=v}while(cells.length&&cells[cells.length-1]===undefined)cells.pop();rows.push(cells)}return rows}};
 window.__AMImportMapping={getDefs:()=>FIELD_DEFS,getMappings:savedMappings,save:(headers,m)=>saveMapping(headers,m),saveAndUpdate:(headers,m)=>{saveMapping(headers,m);return updateRecordsFromMapping(headers,m)},signature:headerSignature};
  window.AMData={read,write,stats,recordStatus,addRecord:add,deleteRecord:del,getRecord:id=>read().find(r=>String(r.id)===String(id))||null,updateRecord:(id,patch)=>{const rows=read();const i=rows.findIndex(r=>String(r.id)===String(id));if(i<0)return false;rows[i]={...rows[i],...patch,updatedAt:new Date().toISOString(),updatedOn:date(new Date().toISOString())};write(rows);return true;},importRows,importCSV,importXLSX,renderDashboard:render,renderMasterPage:renderMaster};
+ window.addEventListener('am-persistent-db-loaded',e=>{try{const rows=Array.isArray(e.detail?.records)?e.detail.records:[];write(rows);render();renderMaster();window.__amNotify?.('Persistent database loaded: '+rows.length+' record(s)');}catch(err){console.error('Persistent DB load failed',err);}});
  // Extension bridge: resolve chassis from the same local master-record store used by the web app.
  window.addEventListener('message',e=>{
    const m=e.data||{};
@@ -696,7 +754,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "VAHAN Automation": `<div class="page-head"><div><h1>VAHAN Automation</h1><p>Guided VAHAN registration workflow using your actual Master Records.</p></div><div class="page-actions"><span class="pill" id="vahanAutomationState">Ready</span></div></div><div class="module-card"><div class="stepper" id="vahanStepper"><div class="vstep active" data-step="1"><div class="vstep-num">1</div><strong>Record Selection</strong></div><div class="vstep" data-step="2"><div class="vstep-num">2</div><strong>Data Preparation</strong></div><div class="vstep" data-step="3"><div class="vstep-num">3</div><strong>Documents</strong></div><div class="vstep" data-step="4"><div class="vstep-num">4</div><strong>VAHAN Processing</strong></div><div class="vstep" data-step="5"><div class="vstep-num">5</div><strong>Verification</strong></div></div><div id="vahanStepContent"></div></div>`,
     "Reports": `<div class="page-head"><div><h1>Reports</h1><p>Review operational summaries and generate dealer reports.</p></div><div class="page-actions"><button class="btn" data-toast="Report filters opened">Filters</button><button class="btn primary" data-toast="Report generation started">Generate Report</button></div></div><div class="module-grid cols-4"><div class="module-card"><h3>Total Records</h3><div class="module-stat">1,248</div><p>This period</p></div><div class="module-card"><h3>Completed</h3><div class="module-stat">612</div><p>49% of records</p></div><div class="module-card"><h3>VAHAN Success</h3><div class="module-stat">310</div><p>Processed successfully</p></div><div class="module-card"><h3>Pending Docs</h3><div class="module-stat">108</div><p>Requires action</p></div></div><div class="module-grid cols-2" style="margin-top:12px"><div class="module-card"><h3>Records Trend</h3><p>Illustrative monthly activity</p><div class="report-chart"><div class="bar" style="height:52%"><b>420</b><small>May</small></div><div class="bar" style="height:66%"><b>530</b><small>Jun</small></div><div class="bar" style="height:58%"><b>470</b><small>Jul</small></div><div class="bar" style="height:78%"><b>640</b><small>Aug</small></div><div class="bar" style="height:92%"><b>760</b><small>Sep</small></div></div></div><div class="module-card"><h3>Available Reports</h3><p>Common report formats</p><div class="check-list" style="margin-top:13px"><div class="check"><span>▤</span> Master Records Summary <button class="btn" style="margin-left:auto" data-toast="Report preview opened">Preview</button></div><div class="check"><span>▤</span> VAHAN Processing Report <button class="btn" style="margin-left:auto" data-toast="Report preview opened">Preview</button></div><div class="check"><span>▤</span> Document Pending Report <button class="btn" style="margin-left:auto" data-toast="Report preview opened">Preview</button></div><div class="check"><span>▤</span> Import History Report <button class="btn" style="margin-left:auto" data-toast="Report preview opened">Preview</button></div></div></div></div>`,
     "Operators": `<div class="page-head"><div><h1>Operators</h1><p>Manage operator accounts, access status and workspace permissions.</p></div><div class="page-actions"><button class="btn primary" data-toast="Add operator form opened">+ Add Operator</button></div></div><div class="module-grid cols-3"><div class="module-card"><h3>Active Operators</h3><div class="module-stat">8</div><p>Currently enabled</p></div><div class="module-card"><h3>Pending Access</h3><div class="module-stat">2</div><p>Awaiting approval</p></div><div class="module-card"><h3>Roles</h3><div class="module-stat">4</div><p>Configured access levels</p></div></div><div class="module-card" style="margin-top:12px"><table class="data-table"><thead><tr><th>Operator</th><th>Employee ID</th><th>Role</th><th>Last Active</th><th>Status</th><th>Access</th><th>Action</th></tr></thead><tbody><tr><td><div class="module-row"><div class="operator-avatar">CP</div><div><b>Chirag Patel</b><small>Sales Desk</small></div></div></td><td>OP-001</td><td>Senior Operator</td><td>Today, 10:14 AM</td><td><span class="pill green">Active</span></td><td><span class="toggle on"></span></td><td>Edit</td></tr><tr><td><div class="module-row"><div class="operator-avatar">RS</div><div><b>Rajesh Shah</b><small>Registration</small></div></div></td><td>OP-002</td><td>Operator</td><td>Today, 09:48 AM</td><td><span class="pill green">Active</span></td><td><span class="toggle on"></span></td><td>Edit</td></tr><tr><td><div class="module-row"><div class="operator-avatar">ND</div><div><b>Neha Desai</b><small>Documents</small></div></div></td><td>OP-003</td><td>Document Operator</td><td>Yesterday</td><td><span class="pill gray">Inactive</span></td><td><span class="toggle"></span></td><td>Edit</td></tr></tbody></table></div>`,
-    "Settings": `<div class="page-head"><div><h1>Settings</h1><p>Configure dealer workspace, application preferences and automation options.</p></div><div class="page-actions"><button class="btn primary" data-toast="Settings saved">Save Changes</button></div></div><div class="settings-layout"><nav class="settings-nav"><button class="active" data-setting="application">Application</button><button data-setting="branding">Dealership Branding</button><button data-setting="appearance">Appearance</button><button data-setting="data">Data & Import</button><button data-setting="extension">Extension / API</button><button>Export</button><button>Documents</button><button>VAHAN Automation</button><button>Notifications</button><button>Backup</button><button>About</button></nav><section class="setting-section" id="settingsApplication"><h3>Application Settings</h3><p>General dealer workspace configuration.</p><div class="setting-row"><div><strong>Dealer Name</strong><small>Name shown throughout the workspace.</small></div><input class="text-field" value="Shree Motors" id="dealerNameField"></div><div class="setting-row"><div><strong>Dealer Code</strong><small>Local dealer identifier. Used to keep dealer branding separate.</small></div><input class="text-field" value="GJ06 - Ahmedabad" id="dealerCodeField"></div><div class="setting-row"><div><strong>Startup Dashboard</strong><small>Open Dashboard when the application starts.</small></div><span class="toggle on"></span></div><div class="setting-row"><div><strong>Local Database</strong><small>Store dealer workspace data locally.</small></div><span class="pill green">Connected</span></div><div class="setting-row"><div><strong>Auto-save Changes</strong><small>Save form changes automatically where supported.</small></div><span class="toggle on"></span></div></section><section class="setting-section" id="settingsBranding" style="display:none"><h3>Dealership Branding</h3><p>Set the showroom photo shown in the Dashboard Hero for this dealer.</p><div class="branding-preview" id="brandingPreview"><div class="branding-empty"><strong>No showroom photo selected</strong>Upload a dealership image to personalize this workspace.</div><img id="brandingPreviewImage" alt="Showroom preview"></div><div class="branding-actions"><label class="btn primary file-button">Upload Showroom Photo<input type="file" id="showroomPhotoInput" accept="image/jpeg,image/png,image/webp"></label><button class="btn soft" type="button" id="saveShowroomPhoto">Save Photo</button><button class="btn soft" type="button" id="resetShowroomPhoto">Reset to Default</button></div><div class="branding-status" id="brandingStatus"></div><div class="branding-note">JPG, PNG or WebP • Recommended wide showroom photo • Stored locally for this dealer code. The image stays on this computer/browser and is not uploaded to a server by this demo.</div></section><section class="setting-section" id="settingsAppearance" style="display:none"><h3>Appearance Settings</h3><p>Choose which record interface is shown in the sidebar. Both options use the same shared records and documents.</p><div class="setting-row"><div><strong>Record View</strong><small>Select the single record interface you want to use.</small></div><select id="recordViewSetting" class="select" style="min-width:260px"><option value="VAHAN Automation View">VAHAN Automation View</option><option value="Master Record View">Master Record View</option></select></div><div class="setting-row"><div><strong>Sidebar Preview</strong><small>The unselected record menu will be hidden; its underlying data remains shared.</small></div><span class="pill green" id="recordViewStatus">VAHAN Automation View active</span></div><button class="btn primary" type="button" id="saveRecordViewSetting">Save Record View</button><div id="recordViewSettingStatus" style="margin-top:10px;color:#526988;font-size:12px"></div></section><section class="setting-section" id="settingsDataImport" style="display:none"><h3>Data &amp; Import Settings</h3><p>Control Excel/CSV import, saved column mappings and protected vehicle identifiers.</p>
+    "Settings": `<div class="page-head"><div><h1>Settings</h1><p>Configure dealer workspace, application preferences and automation options.</p></div><div class="page-actions"><button class="btn primary" data-toast="Settings saved">Save Changes</button></div></div><div class="settings-layout"><nav class="settings-nav"><button class="active" data-setting="application">Application</button><button data-setting="branding">Dealership Branding</button><button data-setting="appearance">Appearance</button><button data-setting="data">Data & Import</button><button data-setting="extension">Extension / API</button><button>Export</button><button>Documents</button><button>VAHAN Automation</button><button>Notifications</button><button>Backup</button><button>About</button></nav><section class="setting-section" id="settingsApplication"><h3>Application Settings</h3><p>General dealer workspace configuration.</p><div class="setting-row"><div><strong>Dealer Name</strong><small>Name shown throughout the workspace.</small></div><input class="text-field" value="Shree Motors" id="dealerNameField"></div><div class="setting-row"><div><strong>Dealer Code</strong><small>Local dealer identifier. Used to keep dealer branding separate.</small></div><input class="text-field" value="GJ06 - Ahmedabad" id="dealerCodeField"></div><div class="setting-row"><div><strong>Startup Dashboard</strong><small>Open Dashboard when the application starts.</small></div><span class="toggle on"></span></div><div class="setting-row"><div><strong>Local Database</strong><small>Store dealer workspace data locally.</small></div><span class="pill green">Connected</span></div><div class="setting-row"><div><strong>Auto-save Changes</strong><small>Save form changes automatically where supported.</small></div><span class="toggle on"></span></div></section><section class="setting-section" id="settingsBranding" style="display:none"><h3>Dealership Branding</h3><p>Set the showroom photo shown in the Dashboard Hero for this dealer.</p><div class="branding-preview" id="brandingPreview"><div class="branding-empty"><strong>No showroom photo selected</strong>Upload a dealership image to personalize this workspace.</div><img id="brandingPreviewImage" alt="Showroom preview"></div><div class="branding-actions"><label class="btn primary file-button">Upload Showroom Photo<input type="file" id="showroomPhotoInput" accept="image/jpeg,image/png,image/webp"></label><button class="btn soft" type="button" id="saveShowroomPhoto">Save Photo</button><button class="btn soft" type="button" id="resetShowroomPhoto">Reset to Default</button></div><div class="branding-status" id="brandingStatus"></div><div class="branding-note">JPG, PNG or WebP • Recommended wide showroom photo • Stored locally for this dealer code. The image stays on this computer/browser and is not uploaded to a server by this demo.</div></section><section class="setting-section" id="settingsAppearance" style="display:none"><h3>Appearance Settings</h3><p>Choose which record interface is shown in the sidebar. Both options use the same shared records and documents.</p><div class="setting-row"><div><strong>Record View</strong><small>Select the single record interface you want to use.</small></div><select id="recordViewSetting" class="select" style="min-width:260px"><option value="VAHAN Automation View">VAHAN Automation View</option><option value="Master Record View">Master Record View</option></select></div><div class="setting-row"><div><strong>Sidebar Preview</strong><small>The unselected record menu will be hidden; its underlying data remains shared.</small></div><span class="pill green" id="recordViewStatus">VAHAN Automation View active</span></div><button class="btn primary" type="button" id="saveRecordViewSetting">Save Record View</button><div id="recordViewSettingStatus" style="margin-top:10px;color:#526988;font-size:12px"></div></section><section class="setting-section" id="settingsDataImport" style="display:none"><h3>Data &amp; Import Settings</h3><p>Control Excel/CSV import, saved column mappings and protected vehicle identifiers.</p><div class="setting-row" style="margin-top:14px"><div><strong>Persistent Database File</strong><small>Keep Master Records outside browser storage. Clearing Chrome site data will not delete this file.</small></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end"><span class="pill gray" id="persistentDbStatus">Not connected</span><button class="btn primary" type="button" id="connectPersistentDbBtn">Connect Database File</button></div></div><div id="persistentDbHelp" style="margin:8px 0 14px;color:#526988;font-size:11px;line-height:1.5">One-time setup: select or create an Auto Management database JSON file. Imported records will be saved there automatically.</div>
 <div class="setting-row"><div><strong>Remember Import Mapping</strong><small>Save your column mapping locally after the first successful mapping.</small></div><label><input type="checkbox" id="rememberMappingSetting" style="width:18px;height:18px"></label></div>
 <div class="setting-row"><div><strong>Auto Apply Saved Mapping</strong><small>When the same column format is detected, apply the saved mapping automatically.</small></div><label><input type="checkbox" id="autoMappingSetting" style="width:18px;height:18px"></label></div>
 <div class="setting-section" style="margin-top:14px;padding:14px;background:#f8fbfe;border-radius:9px;border:1px solid #dbe5ef">
@@ -799,6 +857,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const key=selector?.value;if(!key)return;const maps=getMapEntries();delete maps[key];AMStorage.setItem('am_import_mappings_v2',JSON.stringify(maps));if(status)status.textContent='Selected mapping reset.';collapseEditor();refreshSelector();
     });
     clear?.addEventListener('click',()=>{AMStorage.removeItem('am_import_mappings_v2'); if(status)status.textContent='All saved column mappings cleared.'; window.__amNotify?.('Saved import mappings cleared');collapseEditor();refreshSelector();});
+    const pdbBtn=document.getElementById('connectPersistentDbBtn');
+    const pdbStatus=document.getElementById('persistentDbStatus');
+    const setPdbStatus=(ok,name)=>{if(!pdbStatus)return;pdbStatus.textContent=ok?'Connected'+(name?' • '+name:''):'Not connected';pdbStatus.className='pill '+(ok?'green':'gray');};
+    pdbBtn?.addEventListener('click',async()=>{try{const before=window.AMData?.read?.()||[];const rows=await window.__AM_PERSISTENT_FILE_DB__.connect();const useRows=(Array.isArray(rows)&&rows.length)?rows:before;window.AMData?.write?.(useRows);setPdbStatus(true,window.__AM_PERSISTENT_FILE_DB__.getName?.());window.__amNotify?.((rows?.length?'Persistent database loaded: ':'Persistent database created and current records migrated: ')+useRows.length+' record(s)');}catch(e){if(e?.name!=='AbortError')window.__amNotify?.('Database connection failed: '+(e?.message||e));}});
+    window.addEventListener('am-persistent-db-status',e=>setPdbStatus(!!e.detail?.connected,e.detail?.name));
+
     collapseEditor();
     refreshSelector();
   }
@@ -1122,13 +1186,13 @@ function openPage(name){
         el.addEventListener('blur',()=>saveVahanFields(false));
       });
       function validateOwnerForOtp(){
-        const ownerRequired=['purchaseDeliveryDate','customerName','ownershipType','fatherName','mobile'];
+        const ownerRequired=['purchaseDeliveryDate','customerName','ownershipType','fatherName','mobile','address1','address2','district','pincode'];
         document.querySelectorAll('#vahanStepContent .vahan-form-field').forEach(f=>f.classList.remove('validation-error'));
         const missing=ownerRequired.filter(k=>!String(q('#vf_'+k)?.value||'').trim());
         const box=q('#vahanValidation');
         if(missing.length){
           const labels=Object.fromEntries(VAHAN_FIELDS.map(([k,l])=>[k,l]));
-          if(box){box.innerHTML='<strong>Complete Owner Information before marking OTP Ready.</strong><ul>'+missing.map(k=>'<li>'+esc(labels[k]||k)+'</li>').join('')+'</ul>';box.className='vahan-validation error';}
+          if(box){box.innerHTML='<strong>Complete Owner Information and Address Details before marking OTP Ready.</strong><ul>'+missing.map(k=>'<li>'+esc(labels[k]||k)+'</li>').join('')+'</ul>';box.className='vahan-validation error';}
           missing.forEach(k=>q('#vf_'+k)?.closest('.vahan-form-field')?.classList.add('validation-error'));
           const first=q('#vf_'+missing[0]);
           if(first){first.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>first.focus(),250);}
@@ -1148,7 +1212,7 @@ function openPage(name){
         btn.dataset.busy='1';
         btn.disabled=true;
         btn.textContent='Validating…';
-        const ownerKeys=['purchaseDeliveryDate','customerName','ownershipType','fatherName','mobile'];
+        const ownerKeys=['purchaseDeliveryDate','customerName','ownershipType','fatherName','mobile','address1','address2','district','pincode'];
         const ownerPatch={};
         ownerKeys.forEach(k=>{const el=q('#vf_'+k); if(el) ownerPatch[k]=String(el.value||'').trim();});
         const now=new Date().toISOString();
@@ -1170,13 +1234,45 @@ function openPage(name){
         }
         selected={...selected,...savedRecord};
         prepared=true;
-        btn.textContent='✓ OTP Ready — Saved';
+        // OTP Ready stays on Step 2. Saving the owner/address data is the only
+        // workflow-state action here; additionally copy the selected chassis to
+        // the clipboard so the operator can immediately use it in VAHAN.
+        const chassis=String(savedRecord?.chassisNo||savedRecord?.chasisNo||selected?.chassisNo||selected?.chasisNo||'').trim();
+        let chassisCopiedNow=false;
+        if(chassis){
+          try{
+            if(navigator.clipboard?.writeText){
+              await navigator.clipboard.writeText(chassis);
+              chassisCopiedNow=true;
+            }
+          }catch(e){}
+          if(!chassisCopiedNow){
+            try{
+              const ta=document.createElement('textarea');
+              ta.value=chassis; ta.readOnly=true;
+              ta.style.position='fixed'; ta.style.left='-9999px'; ta.style.top='0';
+              document.body.appendChild(ta); ta.focus(); ta.select();
+              chassisCopiedNow=!!document.execCommand('copy');
+              ta.remove();
+            }catch(e){}
+          }
+        }
+        btn.dataset.busy='0';
+        btn.disabled=false;
+        btn.textContent=chassisCopiedNow?'✓ OTP Ready — Saved + Chassis Copied':'✓ OTP Ready — Saved';
         const box=q('#vahanValidation');
-        if(box){box.textContent='✓ OTP Ready — Owner information saved successfully';box.className='vahan-validation success';}
-        window.__amNotify?.('✓ OTP Ready — Owner Information Saved');
-        await new Promise(resolve=>setTimeout(resolve,450));
-        step=3;
-        render();
+        if(box){
+          box.textContent=chassisCopiedNow
+            ?'✓ OTP Ready — Owner information and address details saved. Chassis No. copied.'
+            :'✓ OTP Ready — Owner information and address details saved. Chassis No. could not be copied; please copy it manually.';
+          box.className='vahan-validation '+(chassisCopiedNow?'success':'error');
+        }
+        window.__amNotify?.(chassisCopiedNow
+          ?'✓ OTP Ready — Owner Information & Address Saved + Chassis No. Copied'
+          :'✓ OTP Ready — Owner Information & Address Saved');
+        // IMPORTANT: do not advance to Step 3 and do not mark chassisCopied/
+        // Completed. Operator remains on Step 2 and can press the button again.
+        return;
       };
       function validateStep2(){
         const missing=required.filter(k=>!String(q('#vf_'+k)?.value||'').trim());
