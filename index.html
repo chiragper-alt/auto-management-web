@@ -687,9 +687,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   district:{label:'District',required:false,aliases:['district','district name','city','city name','areacode','area code']},
   state:{label:'State',required:false,aliases:['state','state name']},
   pincode:{label:'Pincode',required:false,aliases:['pincode','pin code','pin','postal code','zip']},
-  vehicleModel:{label:'Vehicle Model',required:false,readonly:true,aliases:['vehicle model','vehicle','model','vehicle name','model name','model_no','model no']},
-  chassisNo:{label:'Chassis No. / VIN',required:true,readonly:true,aliases:['chassis no','chassis number','chassis','vin','vin no','vin number','chasis no','chasis number','chasis','chasis_no','chassis_no']},
-  engineNo:{label:'Engine No.',required:false,readonly:true,aliases:['engine no','engine number','engine','engine_no','engineno']},
+  vehicleModel:{label:'Vehicle Model',required:false,aliases:['vehicle model','vehicle','model','vehicle name','model name','model_no','model no']},
+  chassisNo:{label:'Chassis No. / VIN',required:true,aliases:['chassis no','chassis number','chassis','vin','vin no','vin number','chasis no','chasis number','chasis','chasis_no','chassis_no','chassis no.','chassis number.','vin no.','vin number.']},
+  engineNo:{label:'Engine No.',required:false,aliases:['engine no','engine number','engine','engine_no','engineno','engine no.','engine_no.','engine number.','engine no / number','engine no. / number']},
   invoiceNo:{label:'Invoice No.',required:false,aliases:['invoice no','invoice number','invoice','inv no','bill no','bill number','bill_no','bill']},
   saleAmount:{label:'Sale Amount',required:false,aliases:['sale amount','sale_amt','sale amount rs','bill amount','bill_amt','total amount']},
   vehicleClass:{label:'Vehicle Class',required:false,aliases:['vehicle class','class']},
@@ -708,7 +708,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   hypothecationDate:{label:'Hypothecation Date',required:false,aliases:['hypothecation date','hpa date','finance date']},
   status:{label:'Status',required:false,aliases:['status','record status']}
  };
- const normHeader=x=>String(x??'').trim().toLowerCase().replace(/[\-_\/]+/g,' ').replace(/\s+/g,' ');
+ const normHeader=x=>String(x??'').trim().toLowerCase().replace(/[\u2013\u2014]/g,'-').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
  function headerSignature(headers){return headers.map(normHeader).join('|');}
  function savedMappings(){try{return JSON.parse(AMStorage.getItem('am_import_mappings_v2')||'{}')}catch(e){return{}}}
  function excelDateValue(key,raw){
@@ -731,7 +731,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  function mappingModal(headers,initial,remember=true){return new Promise(resolve=>{
    const back=document.createElement('div');back.className='modal-backdrop open';back.style.zIndex='1200';
    const opts=['<option value="-1">— Do not import —</option>',...headers.map((h,i)=>`<option value="${i}">${esc(h||('Column '+(i+1)))}</option>`)].join('');
-   const rows=Object.entries(FIELD_DEFS).map(([key,d])=>`<div class="map-row"><div><b>${esc(d.label)}</b>${d.readonly?'<span class="map-required" style="background:#edf2f7;color:#60748c">🔒 Read Only</span>':d.required?'<span class="map-required">Required</span>':''}</div><select class="select map-select" data-field="${key}" ${d.readonly?'disabled':''}>${opts}</select></div>`).join('');
+   const rows=Object.entries(FIELD_DEFS).map(([key,d])=>`<div class="map-row"><div><b>${esc(d.label)}</b>${d.required?'<span class="map-required">Required</span>':''}</div><select class="select map-select" data-field="${key}">${opts}</select></div>`).join('');
    back.innerHTML=`<div class="modal import-map-modal"><h3>Map Import Columns</h3><p>Map your Excel/CSV columns once. The mapping is saved for this exact column format and will be reused automatically next time.</p><div class="map-grid">${rows}</div><label class="map-save"><input type="checkbox" id="rememberImportMap" ${remember?'checked':''}> Remember this mapping for this file format</label><div class="modal-actions"><button class="close">Cancel</button><button class="confirm">Save Mapping & Continue</button></div></div>`;
    document.body.appendChild(back);back.querySelectorAll('.map-select').forEach(sel=>sel.value=String(initial[sel.dataset.field]??-1));
    back.querySelector('.close').onclick=()=>{back.remove();resolve(null)};
@@ -915,7 +915,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <div id="savedMappingEditor" style="margin-top:12px"></div>
 </div>
 <div class="setting-row"><div><strong>Saved Column Mappings</strong><small>Clear all remembered Excel/CSV mappings. Your records are not deleted.</small></div><button class="btn soft" type="button" id="clearSavedMappingsBtn">Clear Mappings</button></div>
-<div id="mappingSettingsStatus" style="margin-top:10px;color:#526988;font-size:12px"></div></section><section class="setting-section" id="settingsExtension" style="display:none"><h3>VAHAN Extension / API</h3><p>Create a secure local API key to connect the Chrome extension directly to this Auto Management Web record store. The key stays in this browser and is never sent to a remote server.</p><div class="setting-row"><div><strong>Extension API Key</strong><small>Use this key once in the Chrome extension to pair it with this browser's records.</small></div><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><input id="extensionApiKeyField" class="text-field" readonly placeholder="No API key generated" style="min-width:290px"><button class="btn primary" type="button" id="generateExtensionApiKeyBtn">Generate Key</button><button class="btn soft" type="button" id="copyExtensionApiKeyBtn">Copy</button></div></div><div class="setting-row"><div><strong>Connection Status</strong><small>Only an extension holding the current key can query chassis records.</small></div><span class="pill gray" id="extensionApiStatus">Not paired</span></div><div style="margin-top:12px;padding:11px 12px;border:1px solid #dce7f2;background:#f7fbff;border-radius:9px;color:#5b718b;font-size:11px;line-height:1.5"><b>Important:</b> Regenerating the key immediately invalidates the previous key. This is a local authenticated bridge, not a public internet API.</div></section></section><section class="setting-section" id="settingsBackup" style="display:none"><h3>Backup & Restore</h3><p>Create a permanent, restorable workspace backup containing records, documents, saved settings, mappings and application preferences.</p><div class="backup-grid"><div class="backup-card"><h3>Full Workspace Backup</h3><p>The backup is a single <b>.ambackup</b> file. It contains your local records, document files, settings, dealership branding, import mappings and extension configuration. Your data stays on your device unless you choose where to save the backup.</p><div class="backup-actions"><button class="btn primary" type="button" id="createFullBackupBtn">Create / Replace Backup</button><button class="btn soft" type="button" id="connectBackupBtn">Open Existing Backup</button><button class="btn soft" type="button" id="restoreBackupBtn">Restore Backup</button></div><div class="backup-status"><i class="backup-dot" id="backupStatusDot"></i><span id="backupStatusText">Backup not configured</span></div><div class="backup-meta"><div><b id="backupRecordCount">0</b><span>Records</span></div><div><b id="backupDocumentCount">0</b><span>Documents</span></div><div><b id="backupLastTime">—</b><span>Last backup</span></div><div><b id="backupFileName">—</b><span>Backup file</span></div></div></div><div class="backup-card"><h3>Automatic Backup</h3><p>Once a backup file is created or connected, Auto Management Web can keep that file updated after data and setting changes.</p><div class="backup-switch"><div><strong>Keep backup updated</strong><small style="display:block;color:#73849a;margin-top:3px">Automatically sync changes to the selected backup file.</small></div><button type="button" class="toggle" id="autoBackupToggle" role="switch" aria-checked="false"></button></div><div style="margin-top:12px;padding:11px 12px;border:1px solid #dce7f2;background:#f7fbff;border-radius:9px;color:#5b718b;font-size:11px;line-height:1.5"><b>Recommended:</b> Keep the backup file on a separate drive/cloud-synced folder. The backup includes document binaries, so it can become large.</div><div id="backupHelp" style="margin-top:10px;font-size:11px;color:#60748c;line-height:1.5"></div></div></div></section><section class="setting-section" id="settingsAbout" style="display:none"><h3>About</h3><p>Auto Management Web application information.</p><div class="about-hero"><div class="about-logo"><img src="web/auto_management_web_logo.svg" alt="Auto Management Web"></div><div class="about-title"><strong>Auto Management Web</strong><span>Premium Enterprise UI 2.0</span></div></div><div class="about-list"><div class="about-row"><span>Version</span><b>v1.4.2</b></div><div class="about-row"><span>Developer</span><b>Auto Management Web</b></div><div class="about-row"><span>Contact</span><b>Contact your Auto Management administrator</b></div><div class="about-row"><span>Support</span><b>Local / browser-based support</b></div></div></section></div>`
+<div id="mappingSettingsStatus" style="margin-top:10px;color:#526988;font-size:12px"></div></section><section class="setting-section" id="settingsExtension" style="display:none"><h3>VAHAN Extension / API</h3><p>Create a secure local API key to connect the Chrome extension directly to this Auto Management Web record store. The key stays in this browser and is never sent to a remote server.</p><div class="setting-row"><div><strong>Extension API Key</strong><small>Use this key once in the Chrome extension to pair it with this browser's records.</small></div><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><input id="extensionApiKeyField" class="text-field" readonly placeholder="No API key generated" style="min-width:290px"><button class="btn primary" type="button" id="generateExtensionApiKeyBtn">Generate Key</button><button class="btn soft" type="button" id="copyExtensionApiKeyBtn">Copy</button></div></div><div class="setting-row"><div><strong>Connection Status</strong><small>Only an extension holding the current key can query chassis records.</small></div><span class="pill gray" id="extensionApiStatus">Not paired</span></div><div style="margin-top:12px;padding:11px 12px;border:1px solid #dce7f2;background:#f7fbff;border-radius:9px;color:#5b718b;font-size:11px;line-height:1.5"><b>Important:</b> Regenerating the key immediately invalidates the previous key. This is a local authenticated bridge, not a public internet API.</div></section></section><section class="setting-section" id="settingsBackup" style="display:none"><h3>Backup & Restore</h3><p>Create a permanent, restorable workspace backup containing records, documents, saved settings, mappings and application preferences.</p><div class="backup-grid"><div class="backup-card"><h3>Full Workspace Backup</h3><p>The backup is a single <b>.ambackup</b> file. It contains your local records, document files, settings, dealership branding, import mappings and extension configuration. Your data stays on your device unless you choose where to save the backup.</p><div class="backup-actions"><button class="btn primary" type="button" id="createFullBackupBtn">Create / Replace Backup</button><button class="btn soft" type="button" id="connectBackupBtn">Open Existing Backup</button><button class="btn soft" type="button" id="restoreBackupBtn">Restore Backup</button></div><div class="backup-status"><i class="backup-dot" id="backupStatusDot"></i><span id="backupStatusText">Backup not configured</span></div><div class="backup-meta"><div><b id="backupRecordCount">0</b><span>Records</span></div><div><b id="backupDocumentCount">0</b><span>Documents</span></div><div><b id="backupLastTime">—</b><span>Last backup</span></div><div><b id="backupFileName">—</b><span>Backup file</span></div></div></div><div class="backup-card"><h3>Automatic Backup</h3><p>Once a backup file is created or connected, Auto Management Web can keep that file updated after data and setting changes.</p><div class="backup-switch"><div><strong>Keep backup updated</strong><small style="display:block;color:#73849a;margin-top:3px">Automatically sync changes to the selected backup file.</small></div><button type="button" class="toggle" id="autoBackupToggle" role="switch" aria-checked="false"></button></div><div style="margin-top:12px;padding:11px 12px;border:1px solid #dce7f2;background:#f7fbff;border-radius:9px;color:#5b718b;font-size:11px;line-height:1.5"><b>Recommended:</b> Keep the backup file on a separate drive/cloud-synced folder. The backup includes document binaries, so it can become large.</div><div id="backupHelp" style="margin-top:10px;font-size:11px;color:#60748c;line-height:1.5"></div></div></div></section><section class="setting-section" id="settingsAbout" style="display:none"><h3>About</h3><p>Auto Management Web application information.</p><div class="about-hero"><div class="about-logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Auto Management Web"><defs><linearGradient id="a" x1="8" y1="8" x2="54" y2="58" gradientUnits="userSpaceOnUse"><stop stop-color="#ffffff"/><stop offset=".55" stop-color="#eaf5ff"/><stop offset="1" stop-color="#8ed7ff"/></linearGradient><linearGradient id="b" x1="18" y1="52" x2="50" y2="10" gradientUnits="userSpaceOnUse"><stop stop-color="#0b73e6"/><stop offset="1" stop-color="#39b6ff"/></linearGradient></defs><path d="M7 52 27 10c2-4 8-4 10 0l20 42h-11L32 24 18 52H7Z" fill="url(#a)"/><path d="M25 43 31 30l7 14-4 8H21l4-9Z" fill="url(#b)"/><path d="M8 53h11l6-10-5-9L8 53Z" fill="#168ff2" opacity=".95"/></svg></div><div class="about-title"><strong>Auto Management Web</strong><span>Premium Enterprise UI 2.0</span></div></div><div class="about-list"><div class="about-row"><span>Version</span><b>v1.4.9</b></div><div class="about-row"><span>Developer</span><b>Auto Management Softwares</b></div><div class="about-row"><span>Contact</span><b>Contact your Auto Management administrator</b></div><div class="about-row"><span>Support</span><b>Local / browser-based support</b></div></div></section></div>`
   };
   const dashboard=document.getElementById('dashboard-view'), pageView=document.getElementById('page-view'), pageContent=document.getElementById('page-content');
   const title=document.querySelector('.search-box');
@@ -979,7 +979,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if(!editorOpen){editor.innerHTML='';return;}
       const raw=getMapEntries()[key]||{}; const headers=raw.headers||key.split('|'); const mapping=raw.mapping||raw; const defs=manager?.getDefs?.()||{};
       const opts=(current,readonly)=>['<option value="-1">— Do not import —</option>',...headers.map((h,i)=>`<option value="${i}" ${Number(current)===i?'selected':''}>${escLocal(h||('Column '+(i+1)))}</option>`)].join('');
-      editor.innerHTML=`<div class="map-grid">${Object.entries(defs).map(([field,d])=>`<div class="map-row"><div><b>${escLocal(d.label)}</b>${d.readonly?'<span class="map-required" style="background:#edf2f7;color:#60748c">🔒 Read Only</span>':d.required?'<span class="map-required">Required</span>':''}</div><select class="select settings-map-select" data-field="${escLocal(field)}" ${d.readonly?'disabled':''}>${opts(mapping[field],d.readonly)}</select></div>`).join('')}</div>
+      editor.innerHTML=`<div class="map-grid">${Object.entries(defs).map(([field,d])=>`<div class="map-row"><div><b>${escLocal(d.label)}</b>${d.required?'<span class="map-required">Required</span>':''}</div><select class="select settings-map-select" data-field="${escLocal(field)}">${opts(mapping[field],d.readonly)}</select></div>`).join('')}</div>
         <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
           <button class="btn primary" type="button" id="saveEditedMappingBtn">Save Mapping &amp; Update Records</button>
           <button class="btn soft" type="button" id="minimizeMappingBtn">Minimize</button>
@@ -1144,7 +1144,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function openPage(name){
     const renderPage=()=>{
       window.__amSetLoading?.(true,'Opening '+name,'Loading workspace view…');
-      if(!pages[name]){ dashboard.classList.remove('dashboard-hidden'); pageView.classList.remove('active'); amCurrentPageName='Dashboard'; syncVahanMainOnlyUi(); return; }
+      if(!pages[name]){ dashboard.classList.remove('dashboard-hidden'); pageView.classList.remove('active'); amCurrentPageName='Dashboard'; window.__amSyncVahanMainOnlyUi?.(); return; }
       amCurrentPageName=name; try{AMStorage.setItem('am_last_page',name)}catch(_){}
       dashboard.classList.add('dashboard-hidden'); pageView.classList.add('active');
       pageContent.innerHTML=pages[name];
@@ -1155,7 +1155,7 @@ function openPage(name){
       try{ setupSettingsTabs(); }catch(e){ console.error('[Auto Management] settings init error',e); }
       try{ applyDealerShowroom(); }catch(e){ console.error('[Auto Management] showroom init error',e); }
       try{ window.dispatchEvent(new CustomEvent('am-page-ready')); }catch(e){ console.error('[Auto Management] page-ready error',e); }
-      try{ syncVahanMainOnlyUi(); }catch(e){ console.error('[Auto Management] VAHAN UI sync error',e); }
+      try{ window.__amSyncVahanMainOnlyUi?.(); }catch(e){ console.error('[Auto Management] VAHAN UI sync error',e); }
       if(name==='Master Records'){
         setTimeout(()=>{try{window.AMData?.renderMasterPage?.()}catch(e){console.error('[Auto Management] master render error',e)}},0);
         const search=pageView.querySelector('#masterRecordSearch');
@@ -1338,17 +1338,40 @@ function openPage(name){
   const DOC_LABELS={customerSignature:'Customer Signature',form20:'Form 20',form21:'Form 21 — Sale Certificate',form22:'Form 22 — Roadworthiness Certificate',form34:'Form 34',insuranceCertificate:'Insurance Certificate',identityProof:'Identity Proof',addressProof:'Address Proof',saleInvoice:'Sale Invoice',manufacturerInvoice:"Manufacturer's Invoice",dealerInspectionReport:'Dealer Inspection Report',disclaimer:'Disclaimer'};
   window.__amDocumentLabel=k=>DOC_LABELS[k]||k;
   window.__amViewSavedDocument=async(recordId,docKey)=>{const meta=await getDocumentBinary(recordId,docKey);if(!meta?.file){window.__amNotify?.('Saved document file is not available');return}try{const blob=meta.file instanceof Blob?meta.file:new Blob([meta.file],{type:meta.type||'application/octet-stream'});const url=URL.createObjectURL(blob);const w=window.open(url,'_blank');if(!w){const a=document.createElement('a');a.href=url;a.download=meta.name||'document';a.click();}setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){window.__amNotify?.('Unable to open saved document');}};
+  function normalizeDateForInput(value){
+    const s=String(value??'').trim();
+    if(!s)return '';
+    // Already in the native date-input format.
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+    // Common imported formats: DD/MM/YYYY, DD-MM-YYYY, YYYY/MM/DD, YYYY-MM-DD HH:mm:ss.
+    let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    m=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    if(m)return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+    const d=new Date(s);
+    if(!Number.isNaN(d.getTime()))return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return '';
+  }
   function saveVahanFields(showToast=false){
     if(!selected||!q('#vahanStepContent')) return false;
     const patch={}; let changed=false;
-    VAHAN_FIELDS.forEach(([k])=>{const el=q('#vf_'+k);if(el){const v=el.value.trim();if(selected[k]!==v){patch[k]=v;changed=true}}});
+    VAHAN_FIELDS.forEach(([k])=>{const el=q('#vf_'+k);if(el){let v=String(el.value??'').trim();if(el.type==='date')v=normalizeDateForInput(v);if(selected[k]!==v){patch[k]=v;changed=true}}});
     if(changed && window.AMData?.updateRecord?.(selected.id,patch)){selected={...selected,...patch}; if(showToast) window.__amNotify?.('Details auto-saved'); return true}
     return false;
   }
   function markWorkflowStep(stepNo){if(!selected)return;window.AMData?.updateRecord?.(selected.id,{vahanWorkflowStep:stepNo,workflowUpdatedAt:new Date().toISOString()})}
   let selected=null, step=1, prepared=false, processing=false, chassisCopied=false;
   const q=s=>document.querySelector(s);
-  window.__amOpenSavedDocuments=recordId=>{window.__amSavedDocsRecordId=String(recordId);window.__amOpenPage?.('VAHAN Automation');};
+  // Local copy: the main UI defines its document-status helper inside a separate
+  // closure, so it is not visible here. Step 3 must not depend on that scope.
+  function getDocumentStatus(meta, required=false){
+    if(meta?.rejected)return {label:'Rejected',cls:'rejected'};
+    if(meta?.replaceRequired)return {label:'Replace Required',cls:'replace'};
+    if(meta?.verified)return {label:'Verified',cls:'verified'};
+    if(meta?.saved || meta?.name)return {label:'Uploaded',cls:'uploaded'};
+    return required?{label:'Missing',cls:'missing'}:{label:'Not Uploaded',cls:'missing'};
+  }
+  window.__amOpenSavedDocuments=recordId=>{const found=(window.AMData?.read?.()||[]).find(r=>String(r.id)===String(recordId));if(!found){window.__amNotify?.('Record not found');return}window.__amSavedDocsRecordId=null;selected={...found};prepared=true;processing=false;chassisCopied=!!found.chassisCopied;step=3;window.__amOpenPage?.('VAHAN Automation');};
   window.__amVahanReset=()=>{try{selected=null;step=1;prepared=false;processing=false;chassisCopied=false;render()}catch(e){}};
   window.__AMVahanWebBridge = {
     startExtension(){
@@ -1381,16 +1404,16 @@ function openPage(name){
       root.innerHTML=`<div class="module-grid cols-2"><div class="module-card" style="box-shadow:none;background:#f8fbfe"><div class="filter-bar"><input class="filter-input" id="vahanRecordSearch" placeholder="Search customer / chassis / invoice..."><span class="pill green">${list.length} Available</span></div><div id="vahanRecordList" style="margin-top:12px;max-height:390px;overflow:auto">${list.length?list.map((r,i)=>`<button class="vahan-record-row ${selected&&selected.id===r.id?'selected':''}" data-id="${esc(r.id)}"><span class="vahan-record-check">${selected&&selected.id===r.id?'✓':''}</span><span><b>${esc(r.customerName||'Unnamed')}</b><small>${esc(r.chassisNo||'')} • ${esc(r.invoiceNo||'')}</small></span><span class="pill ${String(r.status||'Ready').toLowerCase().replace(/\s/g,'-')}">${esc(r.status||'Ready')}</span></button>`).join(''):'<div class="empty-records">No records available. Import records from Import Center first.</div>'}</div></div><div class="module-card" style="box-shadow:none;background:#f8fbfe"><h3>Selected Record</h3><div id="vahanSelectedSummary" style="margin-top:13px">${selected?`<div class="detail-list">${[['Customer',selected.customerName],['Mobile',selected.mobile],['Vehicle',selected.vehicleModel],['Chassis',selected.chassisNo],['Invoice',selected.invoiceNo],['Assigned Office',selected.assignedOffice||selected.district],['Status',selected.status]].map(x=>`<div class="detail-item"><label>${x[0]}</label><b>${esc(x[1]||'—')}</b></div>`).join('')}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn soft" id="vahanSavedDocs1" type="button">📁 Saved Documents</button><button class="btn primary" id="vahanContinue1" type="button">Continue to Data Preparation →</button></div>`:'<div class="empty-records">Select a record to begin VAHAN processing.</div>'}</div></div></div>`;
       q('#vahanRecordSearch')?.addEventListener('input',e=>{const term=e.target.value.toLowerCase();document.querySelectorAll('.vahan-record-row').forEach(b=>b.style.display=b.innerText.toLowerCase().includes(term)?'flex':'none')});
       document.querySelectorAll('.vahan-record-row').forEach(b=>b.addEventListener('click',()=>{selected=list.find(r=>String(r.id)===String(b.dataset.id));chassisCopied=false;if(selected){markWorkflowStep(1)};render()}));
-      q('#vahanSavedDocs1')?.addEventListener('click',()=>{step=3;render()});
+      q('#vahanSavedDocs1')?.addEventListener('click',()=>{if(!selected)return;prepared=true;step=3;markWorkflowStep(3);render();});
       q('#vahanContinue1')?.addEventListener('click',()=>{markWorkflowStep(2);step=2;render()});
     } else if(step===2){
       const r=selected||{};
       const values={
-        customerName:r.customerName,mobile:r.mobile,purchaseDeliveryDate:r.purchaseDeliveryDate||r.purchaseDate,
+        customerName:r.customerName,mobile:r.mobile,purchaseDeliveryDate:normalizeDateForInput(r.purchaseDeliveryDate||r.purchaseDate),
         ownershipType:r.ownershipType||'Individual',fatherName:r.fatherName||'',
         address1:r.address1,address2:r.address2,landmark:r.landmark||'',district:r.district,assignedOffice:r.assignedOffice||r.district,state:r.state,pincode:r.pincode,
         saleAmount:r.saleAmount,vehicleClass:r.vehicleClass||r.vehicleModel,taxMode:r.taxMode,chassisNo:r.chassisNo,engineNo:r.engineNo,
-        insuranceCompany:r.insuranceCompany,insurancePolicyNo:r.insurancePolicyNo,insurancePolicyDate:r.insurancePolicyDate,
+        insuranceCompany:r.insuranceCompany,insurancePolicyNo:r.insurancePolicyNo,insurancePolicyDate:normalizeDateForInput(r.insurancePolicyDate||r.insuranceFrom||r.insuranceDate),
         insurancePeriod:r.insurancePeriod||'5 Years',idv:r.idv||'',
         hypothecation:r.hypothecation,financerName:r.financerName||'',branchAddress:r.branchAddress||'',
         financerState:r.financerState||'',financerDistrict:r.financerDistrict||'',financerPincode:r.financerPincode||'',
@@ -1427,6 +1450,7 @@ function openPage(name){
           ${field('saleAmount','Sale Amount')}${field('vehicleClass','Vehicle Class')}${field('taxMode','Tax Mode')}${field('chassisNo','Chassis No.','text','readonly')}${field('engineNo','Engine No.','text','readonly')}${field('assignedOffice','Assigned Office')}
         </div></div>
         <div class="vahan-validation" id="vahanValidation"></div><div class="modal-actions"><button class="btn soft" id="vahanBack2">← Back</button><button class="btn soft" id="vahanOtpReady2">✓ OTP Ready</button><button class="btn primary" id="vahanContinue2">Validate & Continue →</button></div></div>`;
+      ['purchaseDeliveryDate','insurancePolicyDate'].forEach(k=>{const el=q('#vf_'+k);if(el)el.value=normalizeDateForInput(values[k]);});
       const ownerSel=q('#vf_ownershipType'); if(ownerSel) ownerSel.value=values.ownershipType||'Individual'; if(!r.ownershipType && selected?.id){ window.AMData?.updateRecord?.(selected.id,{ownershipType:'Individual'}); selected={...selected,ownershipType:'Individual'}; }
       const periodSel=q('#vf_insurancePeriod'); if(periodSel) periodSel.value=values.insurancePeriod||'5 Years';
       document.querySelectorAll('#vahanStepContent .vahan-form-field input, #vahanStepContent .vahan-form-field select').forEach(el=>{
@@ -1540,7 +1564,43 @@ function openPage(name){
         return false;
       }
       q('#vahanBack2').onclick=()=>{saveVahanFields(false);step=1;markWorkflowStep(1);render()};
-      q('#vahanContinue2').onclick=()=>{saveVahanFields(false);if(!validateStep2())return;prepared=true;if(selected){const patch={otpReady:false,vahanWorkflowStep:3,status:'In Progress',workflowUpdatedAt:new Date().toISOString()};window.AMData?.updateRecord?.(selected.id,patch);selected={...selected,...patch};}step=3;render()};
+      q('#vahanContinue2').onclick=()=>{
+        const btn=q('#vahanContinue2');
+        if(!selected||btn?.dataset.busy==='1')return;
+
+        // Step 2 -> Step 3 is a validated transition. The dedicated
+        // "Saved Documents" button in Step 1 is the only bypass/direct entry.
+        if(!validateStep2()){
+          if(btn){btn.dataset.busy='0';btn.disabled=false;btn.textContent='Validate & Continue →';}
+          window.__amNotifyError?.('Please complete all mandatory fields before continuing to Step 3.');
+          return;
+        }
+
+        if(btn){btn.dataset.busy='1';btn.disabled=true;btn.textContent='Opening Documents…';}
+        const formPatch={};
+        try{
+          VAHAN_FIELDS.forEach(([k])=>{
+            const el=q('#vf_'+k); if(!el)return;
+            let v=String(el.value??'').trim();
+            if(el.type==='date')v=normalizeDateForInput(v);
+            formPatch[k]=v;
+          });
+          const patch={...formPatch,otpReady:false,vahanWorkflowStep:3,status:'In Progress',workflowUpdatedAt:new Date().toISOString(),step2ValidationPending:false};
+          selected={...selected,...patch};
+          prepared=true;
+          const updated=window.AMData?.updateRecord?.(selected.id,patch);
+          if(updated===false)throw new Error('Unable to save Step 2 data');
+          step=3;
+          markWorkflowStep(3);
+          render();
+        }catch(err){
+          console.error('Step 2 → Step 3 transition failed:',err);
+          window.__amNotifyError?.('Could not open Documents. Your Step 2 data was not advanced. Please try again.');
+          if(btn){btn.dataset.busy='0';btn.disabled=false;btn.textContent='Validate & Continue →';}
+          return;
+        }
+        if(btn){btn.dataset.busy='0';btn.disabled=false;btn.textContent='Validate & Continue →';}
+      };
     } else if(step===3){
       const docs=[['customerSignature','Customer Signature *'],['form20','Form 20 *'],['form21','Form 21 — Sale Certificate *'],['form22','Form 22 — Roadworthiness Certificate *'],['form34','Form 34'],['insuranceCertificate','Insurance Certificate'],['identityProof','Identity Proof *'],['addressProof','Address Proof *'],['saleInvoice','Sale Invoice'],['manufacturerInvoice',"Manufacturer's Invoice *"],['dealerInspectionReport','Dealer Inspection Report *'],['disclaimer','Disclaimer *']];
       const attached=selected?.documents||{};
@@ -1589,10 +1649,24 @@ function openPage(name){
     }
     document.querySelectorAll('#vahanStepper .vstep').forEach(v=>{v.classList.toggle('active',Number(v.dataset.step)===step);v.classList.toggle('done',Number(v.dataset.step)<step)});
     const state=q('#vahanAutomationState');if(state)state.textContent=step===5?'Verification':step===4?'Processing':step===3?'Documents':step===2?'Preparation':'Ready';
+    document.querySelectorAll('#vahanStepper .vstep').forEach(el=>{
+      const target=Number(el.dataset.step||0);
+      // Step 3 is intentionally not a free-navigation target. It can be
+      // opened directly only by the Saved Documents button in Step 1, or
+      // after successful Step 2 validation.
+      const canNavigate=selected && target!==3 && (target===1 || target===2 || (target===4 && step>=4) || (target===5 && step>=5));
+      el.style.cursor=canNavigate?'pointer':'default';
+      el.onclick=()=>{
+        if(!canNavigate)return;
+        if(target===1){step=1;render();return}
+        if(target===2){step=2;render();return}
+        if(target===4 && step>=4){step=4;render();return}
+        if(target===5 && step>=5){step=5;render();return}
+      };
+    });
   }
   function init(){if(!q('#vahanStepContent'))return;const pending=window.__amSavedDocsRecordId;if(pending){const found=(window.AMData?.read?.()||[]).find(r=>String(r.id)===String(pending));window.__amSavedDocsRecordId=null;if(found){selected=found;step=3;prepared=true;render();return}}render();q('#vahanStartBtn')?.addEventListener('click',()=>{step=1;selected=null;render();window.__amNotify?.('Select a Master Record to start VAHAN workflow')});}
   window.addEventListener('am-page-ready',()=>{if(q('#vahanStepContent'))init()});
-  document.addEventListener('click',e=>{const s=e.target.closest('#vahanStepper .vstep');if(s){const n=Number(s.dataset.step);if(n<=step){step=n;render()}}});
 })();
 </script>
 <style>
@@ -1694,12 +1768,12 @@ body.am-non-dashboard .topbar .search-box{visibility:hidden!important;pointer-ev
   });
 })();
 </script>
-<script>window.__AM_UI_VERSION="Premium Enterprise UI 2.0 • v1.4.2";</script>
+<script>window.__AM_UI_VERSION="Premium Enterprise UI 2.0 • v1.4.4";</script>
 
 <style id="am-backup-about-css">
 .backup-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.8fr);gap:14px}
 .backup-card{border:1px solid #dbe6f0;background:linear-gradient(145deg,#fff,#f8fbfe);border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(25,58,91,.06)}
-.backup-card h3{margin:0;font-size:16px;color:#173b61}.backup-card p{font-size:12px;color:#60748c;line-height:1.55;margin:6px 0 0}.backup-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.backup-status{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:#526988}.backup-dot{width:8px;height:8px;border-radius:50%;background:#9aa8b8}.backup-dot.active{background:#1ca36a;box-shadow:0 0 0 4px rgba(28,163,106,.10)}.backup-dot.warn{background:#e5a01b}.backup-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.backup-meta div{padding:10px;border:1px solid #e0e8f0;border-radius:8px;background:#fff}.backup-meta b{display:block;font-size:15px;color:#173b61}.backup-meta span{font-size:10px;color:#73849a}.backup-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;margin-top:12px;border:1px solid #dce7f2;border-radius:8px;background:#f7fbff}.about-hero{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid #dce7f2;border-radius:10px;background:linear-gradient(135deg,#f7fbff,#fff)}.about-logo{width:48px;height:48px;display:grid;place-items:center}.about-logo img{width:48px;height:48px;object-fit:contain}.about-title strong{display:block;font-size:18px;color:#173b61}.about-title span{display:block;font-size:11px;color:#60748c;margin-top:3px}.about-list{margin-top:14px;border:1px solid #dfe8f0;border-radius:9px;overflow:hidden}.about-row{display:flex;justify-content:space-between;gap:20px;padding:11px 13px;border-bottom:1px solid #e8eef4;font-size:12px}.about-row:last-child{border-bottom:0}.about-row span{color:#6b7f96}.about-row b{color:#193d62;text-align:right}
+.backup-card h3{margin:0;font-size:16px;color:#173b61}.backup-card p{font-size:12px;color:#60748c;line-height:1.55;margin:6px 0 0}.backup-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.backup-status{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:#526988}.backup-dot{width:8px;height:8px;border-radius:50%;background:#9aa8b8}.backup-dot.active{background:#1ca36a;box-shadow:0 0 0 4px rgba(28,163,106,.10)}.backup-dot.warn{background:#e5a01b}.backup-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.backup-meta div{padding:10px;border:1px solid #e0e8f0;border-radius:8px;background:#fff}.backup-meta b{display:block;font-size:15px;color:#173b61}.backup-meta span{font-size:10px;color:#73849a}.backup-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;margin-top:12px;border:1px solid #dce7f2;border-radius:8px;background:#f7fbff}.about-hero{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid #dce7f2;border-radius:10px;background:linear-gradient(135deg,#f7fbff,#fff)}.about-logo{width:48px;height:48px;display:grid;place-items:center}.about-logo svg{width:48px;height:48px;display:block;object-fit:contain}.about-title strong{display:block;font-size:18px;color:#173b61}.about-title span{display:block;font-size:11px;color:#60748c;margin-top:3px}.about-list{margin-top:14px;border:1px solid #dfe8f0;border-radius:9px;overflow:hidden}.about-row{display:flex;justify-content:space-between;gap:20px;padding:11px 13px;border-bottom:1px solid #e8eef4;font-size:12px}.about-row:last-child{border-bottom:0}.about-row span{color:#6b7f96}.about-row b{color:#193d62;text-align:right}
 @media(max-width:850px){.backup-grid{grid-template-columns:1fr}.backup-meta{grid-template-columns:1fr 1fr}}
 </style>
 </body>
