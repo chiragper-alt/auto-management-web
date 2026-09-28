@@ -915,38 +915,59 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.addEventListener('storage', applyRecordViewSetting);
+  // Apply the saved Record View setting immediately on startup.
+  // Without this initial sync, both Master Records and VAHAN Automation can
+  // briefly remain visible until the user opens Settings or clicks a menu item.
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>applyRecordViewSetting(),{once:true});
+  else setTimeout(()=>applyRecordViewSetting(),0);
   
 function openPage(name){
-    if(!pages[name]){ dashboard.classList.remove('dashboard-hidden'); pageView.classList.remove('active'); amCurrentPageName='Dashboard'; syncVahanMainOnlyUi(); return; }
-    amCurrentPageName=name;
-    dashboard.classList.add('dashboard-hidden'); pageView.classList.add('active'); pageContent.innerHTML=(name==='VAHAN Automation'?'':'<button class="btn soft page-back" type="button" style="margin-bottom:12px">← Dashboard</button>')+pages[name];
-    document.querySelector('.nav-item.active')?.classList.remove('active');
-    pageView.querySelector('.page-back')?.addEventListener('click',()=>{if(name==='VAHAN Automation'){window.__amVahanReset?.();return;} amCurrentPageName='Dashboard'; dashboard.classList.remove('dashboard-hidden');pageView.classList.remove('active');pageContent.innerHTML='';document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.querySelector('.nav-item')?.classList.add('active');});
-    [...document.querySelectorAll('.nav-item')].find(x=>x.innerText.includes(name))?.classList.add('active');
-    pageView.querySelectorAll('[data-toast]').forEach(b=>b.addEventListener('click',()=>window.__amNotify?.(b.dataset.toast)));
-    pageView.querySelectorAll('.settings-nav button').forEach(b=>b.addEventListener('click',()=>{pageView.querySelectorAll('.settings-nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');}));
-    setupSettingsTabs();
-    applyDealerShowroom();
-    window.dispatchEvent(new CustomEvent('am-page-ready'));
-    syncVahanMainOnlyUi();
-    if(name==='Master Records'){
-      setTimeout(()=>window.AMData?.renderMasterPage?.(),0);
-      const search=pageView.querySelector('#masterRecordSearch');
-      const refreshMaster=()=>window.AMData?.renderMasterPage?.();
-      search?.addEventListener('input',refreshMaster);
-      pageView.querySelectorAll('[data-master-filter]').forEach(btn=>btn.addEventListener('click',()=>{
-        pageView.querySelectorAll('[data-master-filter]').forEach(x=>x.classList.remove('active')); btn.classList.add('active');
-        const f=btn.dataset.masterFilter;
-        if(f==='All' && btn.textContent.includes('Needs Attention')){pageView.querySelector('#masterRecordSearch')?.dispatchEvent(new Event('input'));return;}
-        if(f==='All') window.__amMasterStatusFilter='All'; else window.__amMasterStatusFilter=f;
-        refreshMaster();
-      }));
-      pageView.querySelector('.import-link')?.addEventListener('click',()=>window.__amOpenPage?.('Import Center'));
-      pageView.querySelectorAll('.master-view').forEach(btn=>btn.addEventListener('click',()=>window.__amOpenRecordView?.(btn.dataset.id)));
-      pageView.querySelectorAll('.master-saved-docs').forEach(btn=>btn.addEventListener('click',()=>window.__amOpenSavedDocuments?.(btn.dataset.id)));
-      pageView.querySelector('#masterSelectAll')?.addEventListener('change',e=>pageView.querySelectorAll('.master-row-check').forEach(c=>c.checked=e.target.checked));
+    const renderPage=()=>{
+      if(!pages[name]){ dashboard.classList.remove('dashboard-hidden'); pageView.classList.remove('active'); amCurrentPageName='Dashboard'; syncVahanMainOnlyUi(); return; }
+      amCurrentPageName=name;
+      dashboard.classList.add('dashboard-hidden'); pageView.classList.add('active');
+      pageContent.innerHTML=(name==='VAHAN Automation'?'':'<button class="btn soft page-back" type="button" style="margin-bottom:12px">← Dashboard</button>')+pages[name];
+      document.querySelector('.nav-item.active')?.classList.remove('active');
+      pageView.querySelector('.page-back')?.addEventListener('click',()=>{if(name==='VAHAN Automation'){window.__amVahanReset?.();return;} amCurrentPageName='Dashboard'; dashboard.classList.remove('dashboard-hidden');pageView.classList.remove('active');pageContent.innerHTML='';document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.querySelector('.nav-item')?.classList.add('active');});
+      [...document.querySelectorAll('.nav-item')].find(x=>x.innerText.includes(name))?.classList.add('active');
+      pageView.querySelectorAll('[data-toast]').forEach(b=>b.addEventListener('click',()=>window.__amNotify?.(b.dataset.toast)));
+      pageView.querySelectorAll('.settings-nav button').forEach(b=>b.addEventListener('click',()=>{pageView.querySelectorAll('.settings-nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');}));
+      try{ setupSettingsTabs(); }catch(e){ console.error('[Auto Management] settings init error',e); }
+      try{ applyDealerShowroom(); }catch(e){ console.error('[Auto Management] showroom init error',e); }
+      try{ window.dispatchEvent(new CustomEvent('am-page-ready')); }catch(e){ console.error('[Auto Management] page-ready error',e); }
+      try{ syncVahanMainOnlyUi(); }catch(e){ console.error('[Auto Management] VAHAN UI sync error',e); }
+      if(name==='Master Records'){
+        setTimeout(()=>{try{window.AMData?.renderMasterPage?.()}catch(e){console.error('[Auto Management] master render error',e)}},0);
+        const search=pageView.querySelector('#masterRecordSearch');
+        const refreshMaster=()=>{try{window.AMData?.renderMasterPage?.()}catch(e){console.error('[Auto Management] master refresh error',e)}};
+        search?.addEventListener('input',refreshMaster);
+        pageView.querySelectorAll('[data-master-filter]').forEach(btn=>btn.addEventListener('click',()=>{
+          pageView.querySelectorAll('[data-master-filter]').forEach(x=>x.classList.remove('active')); btn.classList.add('active');
+          const f=btn.dataset.masterFilter;
+          if(f==='All' && btn.textContent.includes('Needs Attention')){pageView.querySelector('#masterRecordSearch')?.dispatchEvent(new Event('input'));return;}
+          if(f==='All') window.__amMasterStatusFilter='All'; else window.__amMasterStatusFilter=f;
+          refreshMaster();
+        }));
+        pageView.querySelector('.import-link')?.addEventListener('click',()=>window.__amOpenPage?.('Import Center'));
+        pageView.querySelectorAll('.master-view').forEach(btn=>btn.addEventListener('click',()=>window.__amOpenRecordView?.(btn.dataset.id)));
+        pageView.querySelectorAll('.master-saved-docs').forEach(btn=>btn.addEventListener('click',()=>window.__amOpenSavedDocuments?.(btn.dataset.id)));
+        pageView.querySelector('#masterSelectAll')?.addEventListener('change',e=>pageView.querySelectorAll('.master-row-check').forEach(c=>c.checked=e.target.checked));
+      }
+      pageView.querySelectorAll('.filter-input').forEach(input=>input.addEventListener('input',()=>{const q=input.value.toLowerCase(); const table=input.closest('.module-card')?.querySelector('tbody'); if(!table)return; table.querySelectorAll('tr').forEach(r=>r.style.display=!q||r.innerText.toLowerCase().includes(q)?'':'none')}));
+    };
+    try{ renderPage(); }
+    catch(err){
+      console.error('[Auto Management] page render error',name,err);
+      // A transient initialization error must not leave the page blank.
+      setTimeout(()=>{try{renderPage()}catch(retryErr){console.error('[Auto Management] page retry error',name,retryErr)}},50);
     }
-    pageView.querySelectorAll('.filter-input').forEach(input=>input.addEventListener('input',()=>{const q=input.value.toLowerCase(); const table=input.closest('.module-card')?.querySelector('tbody'); if(!table)return; table.querySelectorAll('tr').forEach(r=>r.style.display=!q||r.innerText.toLowerCase().includes(q)?'':'none')}));
+    // Guard against transient DOM races: if the requested page is unexpectedly empty,
+    // rebuild it once on the next frame without changing any page functionality.
+    requestAnimationFrame(()=>{
+      if(name!=='VAHAN Automation' && pageView.classList.contains('active') && !pageContent.textContent.trim()){
+        try{renderPage()}catch(e){console.error('[Auto Management] blank-page recovery error',name,e)}
+      }
+    });
   }
   window.__amOpenPage=openPage;
   window.__AM_OPEN_MASTER_RECORDS=()=>openPage('Master Records');
@@ -1267,9 +1288,9 @@ function openPage(name){
             :'✓ OTP Ready — Owner information and address details saved. Chassis No. could not be copied; please copy it manually.';
           box.className='vahan-validation '+(chassisCopiedNow?'success':'error');
         }
-        window.__amNotify?.(chassisCopiedNow
-          ?'✓ OTP Ready — Owner Information & Address Saved + Chassis No. Copied'
-          :'✓ OTP Ready — Owner Information & Address Saved');
+        // Keep the confirmation inside the VAHAN Step 2 validation area.
+        // Do not send a global toast here, because the toast is attached to the
+        // document body and can otherwise appear at the bottom of Dashboard.
         // IMPORTANT: do not advance to Step 3 and do not mark chassisCopied/
         // Completed. Operator remains on Step 2 and can press the button again.
         return;
