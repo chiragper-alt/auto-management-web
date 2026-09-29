@@ -1,47 +1,20 @@
-# Auto Management Web — Cloudflare Free API
+Auto Management Web v1.5.4 — Developer Serial Key + Email ID validation
 
-This folder is an optional Cloudflare Workers + D1 backend. The web app remains local-first; this backend can be enabled later without changing the local `.amdb` workflow.
+Auto Management Web V1.4.0 — Settings & Status Polish
 
-## Deploy
-1. Install Wrangler: `npm install -g wrangler`
-2. Login: `npx wrangler login`
-3. Create D1: `npx wrangler d1 create auto-management-web`
-4. Put the returned database id into `wrangler.toml`.
-5. Apply schema: `npx wrangler d1 execute auto-management-web --remote --file=./schema.sql`
-6. Set a strong secret: `npx wrangler secret put JWT_SECRET`
-7. Deploy: `npx wrangler deploy`
+Changes in this build:
+- Removed Export, VAHAN Automation and Notifications options from Settings navigation.
+- Removed the generic "Dashboard" fallback button from internal pages; navigation is handled by the sidebar.
+- Added distinct visual colors for Ready, OTP Ready, In Progress, Completed, Document Pending and Partial statuses across record views.
+- Application Settings are now functional and saved locally: Dealer Name, Dealer Code, Startup Dashboard and Auto-save Changes.
+- Dealer Name and Dealer Code changes update the sidebar identity.
+- Startup Dashboard can be enabled/disabled; when disabled, the last opened page is restored on startup.
+- Preserved the v1.3.9 standalone monogram SVG single-render fix.
 
-## One Website / Three Roles
-The same Worker URL can serve the web app and the API. The login screen has three roles:
-- Developer — creates Dealer accounts and manages subscriptions/licenses.
-- Dealer Admin — signs in with the Dealer ID and manages Operators.
-- Operator — signs in with Dealer ID + Operator ID and receives only assigned permissions.
 
-The included `site/index.html` is served by the Worker through the Assets binding, so no second website is required. The browser automatically uses the same origin as the API when deployed on `workers.dev`.
-
-## API
-- `GET /health`
-- `POST /auth/developer-login` — `{loginId, password}`
-- `POST /developer/bootstrap` — protected by `X-Bootstrap-Key`
-- `GET /developer/dealers` — Developer JWT only
-- `POST /developer/dealers` — Developer JWT only
-- `PATCH /developer/dealers/status` — Developer JWT only
-- `POST /auth/login` — `{dealerId, loginId, password}`
-- `GET /me`
-- `GET /operators`
-- `PUT /operators`
-- `PATCH /dealer`
-- `GET /records`
-- `POST /records/sync`
-
-## Security
-Use a specific production `ALLOWED_ORIGIN` instead of `*` after the web app has a stable domain. Passwords are never stored as plaintext; the worker stores salted SHA-256 hashes. Keep `JWT_SECRET` private.
-
-## Provision the first Developer
-Set a private bootstrap key with `npx wrangler secret put BOOTSTRAP_KEY`. From a one-time private provisioning script, POST developer id/name/password salt/hash to `/developer/bootstrap`. Do not expose this key in the browser.
-
-## Provision a Dealer
-After Developer login, use `POST /developer/dealers`. The browser Developer Panel does this automatically.
-
-## Provision the first Dealer (legacy endpoint)
-Set a private bootstrap key with `npx wrangler secret put BOOTSTRAP_KEY`. From your developer/admin tooling, POST the dealer id, admin id, dealer name, password salt/hash, plan and subscription fields to `/bootstrap` with header `X-Bootstrap-Key`. Do not expose this key in the browser.
+## v1.5.0 — Dealer Admin & Operator Access
+- Dealer Admin ID/password login with salted password hashes.
+- Operator ID creation/edit/enable/disable and module permissions.
+- Current dealer/operator identity shown in the workspace and audit metadata on record changes.
+- Connected `.amdb` database files persist dealer/operator workspace metadata alongside records.
+- Existing local records and VAHAN workflow remain compatible.
