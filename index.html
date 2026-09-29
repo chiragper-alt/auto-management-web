@@ -743,7 +743,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  const FIELD_DEFS={
   customerName:{label:'Owner Name',required:true,aliases:['owner name','customer name','customer','customername','name','client','client name']},
   mobile:{label:'Mobile No.',required:false,aliases:['mobile','mobile no','mobile number','phone','phone no','contact','contact no']},
-  purchaseDeliveryDate:{label:'Purchase Date',required:false,aliases:['purchase date','purchase dt','purchase_date','bill date','bill_dt','invoice date','invoice dt']},
+  purchaseDeliveryDate:{label:'Purchase/Delivery Date',required:false,aliases:['purchase date','purchase dt','purchase_date','bill date','bill_dt','invoice date','invoice dt']},
   ownershipType:{label:'Ownership Type',required:false,aliases:['ownership type','ownership','owner type']},
   fatherName:{label:'Father Name',required:false,aliases:['father name','father','fathers name']},
   address1:{label:'House No. & Street',required:false,aliases:['house no','house no & street','address line 1','address1','address 1','add1','street','address']},
@@ -1389,7 +1389,7 @@ function openPage(name){
 <script>
 (function(){
   const VAHAN_FIELDS=[
-    ['customerName','Owner Name'],['mobile','Mobile No.'],['purchaseDeliveryDate','Purchase Date'],['ownershipType','Ownership Type'],['fatherName','Father Name'],
+    ['customerName','Owner Name'],['mobile','Mobile No.'],['purchaseDeliveryDate','Purchase/Delivery Date'],['ownershipType','Ownership Type'],['fatherName','Father Name'],
     ['address1','House No. & Street'],['address2','Village / Town'],['landmark','Landmark'],['district','District'],['assignedOffice','Assigned Office'],['state','State'],['pincode','Pincode'],
     ['saleAmount','Sale Amount'],['vehicleClass','Vehicle Class'],['taxMode','Tax Mode'],['chassisNo','Chassis No.'],['engineNo','Engine No.'],
     ['insuranceCompany','Insurance Company'],['insurancePolicyNo','Policy No.'],['insurancePolicyDate','Insurance From'],['insurancePeriod','Insurance Period'],['idv','IDV'],
@@ -1523,7 +1523,7 @@ function openPage(name){
       root.innerHTML=`<div class="module-card" style="box-shadow:none;background:#f8fbfe">
         <div class="module-row"><div class="module-icon">2</div><div><h3>Step 2 — Data Preparation</h3><p>Review and prepare the selected record before VAHAN processing. <b style="color:#1680ee">Changes auto-save while you type.</b></p></div></div>
         <div class="vahan-category"><h4>Owner Information</h4><div class="vahan-form-grid">
-          ${field('purchaseDeliveryDate','Purchase Date','date')}${field('customerName','Owner Name')}${field('ownershipType','Ownership Type','select')}${field('fatherName','Father Name')}${field('mobile','Mobile No.')}
+          ${field('purchaseDeliveryDate','Purchase/Delivery Date','date')}${field('customerName','Owner Name')}${field('ownershipType','Ownership Type','select')}${field('fatherName','Father Name')}${field('mobile','Mobile No.')}
         </div></div>
         <div class="vahan-category"><h4>Address</h4><div class="vahan-form-grid">
           ${field('address1','House No. & Street')}${field('address2','Village / Town')}${field('landmark','Landmark')}${field('district','District')}${field('pincode','Pincode')}${field('state','State')}
