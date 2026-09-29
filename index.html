@@ -458,6 +458,71 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}}
 </style>
 
+<script id="am-vahan-automation-engine">
+(function(){
+  'use strict';
+  const STATES=Object.freeze({IDLE:'idle',STARTING:'starting',RUNNING:'running',PAUSED:'paused',ERROR:'error',STOPPED:'stopped',COMPLETED:'completed'});
+  const STEP_NAMES=['Assigned Office','Entry-New Registration','Show Form','Owner Details','Vehicle Details','OTP','Application No.','Insurance','Hypothecation','Documents'];
+  const MAX_START_RETRIES=2, START_TIMEOUT=12000;
+  let state=STATES.IDLE, attempt=0, timer=null, currentJob=null, lastStatus=null, startedAt=0;
+  const listeners=new Set();
+  function emit(detail){lastStatus={...detail,time:new Date().toISOString()};listeners.forEach(fn=>{try{fn(lastStatus)}catch(e){}});window.dispatchEvent(new CustomEvent('am-automation-state',{detail:lastStatus}));}
+  function clearTimer(){if(timer){clearTimeout(timer);timer=null;}}
+  function setState(next,extra={}){state=next;emit({state:next,attempt,job:currentJob,step:extra.step||lastStatus?.step||null,stepName:extra.stepName||lastStatus?.stepName||null,message:extra.message||null,recoverable:!!extra.recoverable});}
+  function postStart(){
+    if(!currentJob)return false;
+    attempt++;
+    setState(attempt===1?STATES.STARTING:STATES.RUNNING,{message:attempt===1?'Starting VAHAN automation…':'Reconnecting to VAHAN automation…',recoverable:true});
+    try{window.postMessage({type:'AM_WEB_START_VAHAN',job:currentJob,automation:{attempt,engine:'v2',requestedAt:new Date().toISOString()}},'*');}catch(e){setState(STATES.ERROR,{message:'Unable to communicate with the VAHAN extension.',recoverable:true});return false;}
+    clearTimer();
+    timer=setTimeout(()=>{
+      if(state!==STATES.STARTING)return;
+      if(attempt<MAX_START_RETRIES+1){postStart();}
+      else setState(STATES.ERROR,{message:'VAHAN extension did not respond. Check that the extension is connected and try again.',recoverable:true});
+    },START_TIMEOUT);
+    return true;
+  }
+  window.AMVahanAutomation={
+    STATES,
+    start(job){
+      if(state===STATES.STARTING||state===STATES.RUNNING)return {ok:false,reason:'already-running'};
+      currentJob={...job};attempt=0;clearTimer();setState(STATES.STARTING,{message:'Preparing VAHAN automation…',recoverable:true});postStart();return {ok:true};
+    },
+    stop(){clearTimer();try{window.postMessage({type:'AM_WEB_STOP_VAHAN'},'*')}catch(e){}setState(STATES.STOPPED,{message:'Automation stopped.',recoverable:true});},
+    pause(){if(state!==STATES.RUNNING)return false;try{window.postMessage({type:'AM_WEB_PAUSE_VAHAN'},'*')}catch(e){}setState(STATES.PAUSED,{message:'Automation paused.',recoverable:true});return true;},
+    resume(){if(state!==STATES.PAUSED)return false;try{window.postMessage({type:'AM_WEB_RESUME_VAHAN'},'*')}catch(e){}setState(STATES.RUNNING,{message:'Automation resumed.',recoverable:true});return true;},
+    retry(){if(!currentJob)return false;attempt=0;clearTimer();return postStart();},
+    on(fn){listeners.add(fn);return()=>listeners.delete(fn);},
+    getState(){return {state,attempt,job:currentJob,lastStatus};},
+    steps:STEP_NAMES.slice()
+  };
+  window.addEventListener('message',e=>{
+    const m=e.data||{};
+    if(m.type!=='AM_EXTENSION_VAHAN_STATUS')return;
+    const st=m.status||{};
+    clearTimer();
+    let step=st.step??st.currentStep??st.phase??null;
+    let stepName=st.stepName||st.phaseName||null;
+    if(typeof step==='string' && /^\d+$/.test(step))step=Number(step);
+    if(typeof step==='number' && !stepName)stepName=STEP_NAMES[Math.max(0,step-1)]||null;
+    if(/complete/i.test(String(st.message||''))||st.state==='completed'){
+      setState(STATES.COMPLETED,{step,stepName,message:st.message||'VAHAN automation completed.'});return;
+    }
+    if(st.state==='error'){
+      setState(STATES.ERROR,{step,stepName,message:st.message||'VAHAN automation error.',recoverable:true});return;
+    }
+    if(st.state==='stopped'){
+      setState(STATES.STOPPED,{step,stepName,message:st.message||'Automation stopped.',recoverable:true});return;
+    }
+    if(st.state==='paused'){
+      setState(STATES.PAUSED,{step,stepName,message:st.message||'Automation paused.',recoverable:true});return;
+    }
+    if(st.state==='running'||st.state==='starting'||st.message){
+      setState(st.state==='starting'?STATES.STARTING:STATES.RUNNING,{step,stepName,message:st.message||('Running '+(stepName||'VAHAN automation')+'…'),recoverable:true});
+    }
+  });
+})();
+</script>
 </head>
 <body>
 <div id="amGlobalLoader" aria-hidden="true"><div class="am-loader-card"><div class="am-spinner"></div><strong id="amLoaderTitle">Working…</strong><small id="amLoaderSub">Please wait</small></div></div>
@@ -1377,13 +1442,36 @@ function openPage(name){
     startExtension(){
       if(!selected) return false;
       const job={...selected};
-      VAHAN_FIELDS.forEach(([k])=>{ const el=q('#vf_'+k); if(el && el.value.trim()) job[k]=el.value.trim(); });
-      try { window.postMessage({type:'AM_WEB_START_VAHAN',job}, '*'); if(window.__amNotify) window.__amNotify('VAHAN Extension: starting automation…'); }
-      catch(e) { if(window.__amNotify) window.__amNotify('VAHAN Extension connection failed'); return false; }
+      VAHAN_FIELDS.forEach(([k])=>{ const el=q('#vf_'+k); if(el && String(el.value||'').trim()) job[k]=String(el.value||'').trim(); });
+      const result=window.AMVahanAutomation?.start?.(job);
+      if(result?.ok===false){ window.__amNotifyError?.('VAHAN automation is already running.'); return false; }
+      window.__amNotify?.('VAHAN Automation: preparing…');
       return true;
     },
-    stopExtension(){ try{window.postMessage({type:'AM_WEB_STOP_VAHAN'},'*')}catch(e){} }
+    stopExtension(){ window.AMVahanAutomation?.stop?.(); },
+    pauseExtension(){ return !!window.AMVahanAutomation?.pause?.(); },
+    resumeExtension(){ return !!window.AMVahanAutomation?.resume?.(); },
+    retryExtension(){ return !!window.AMVahanAutomation?.retry?.(); }
   };
+  window.addEventListener('am-automation-state',e=>{
+    const st=e.detail||{};
+    const pill=q('#vahanAutomationState');
+    if(pill){
+      const label=st.state==='running'?'Automation Running':st.state==='starting'?'Starting Automation…':st.state==='paused'?'Automation Paused':st.state==='error'?'Automation Error':st.state==='completed'?'Automation Completed':st.state==='stopped'?'Automation Stopped':'Ready';
+      pill.textContent=st.stepName?label+' · '+st.stepName:label;
+      pill.dataset.state=st.state;
+    }
+    if(st.state==='running'||st.state==='starting'){processing=true;}
+    if(st.state==='error'||st.state==='stopped'||st.state==='paused'){processing=false;}
+    if(st.state==='completed'){processing=false;step=5;}
+    if(selected && (st.state==='running'||st.state==='completed')){
+      const patch={status:st.state==='completed'?'Completed':'In Progress',automationState:st.state,automationStep:st.stepName||st.step||null,automationUpdatedAt:new Date().toISOString()};
+      window.AMData?.updateRecord?.(selected.id,patch);
+      selected={...selected,...patch};
+    }
+    if(st.message && st.state==='error')window.__amNotifyError?.(st.message);
+    render();
+  });
   window.addEventListener('message',e=>{
     const m=e.data||{}; if(m.type!=='AM_EXTENSION_VAHAN_STATUS') return;
     const st=m.status||{};
@@ -1610,7 +1698,11 @@ function openPage(name){
       q('#vahanBack3').onclick=()=>{markWorkflowStep(2);step=2;render()};
       q('#vahanContinue3').onclick=()=>{markWorkflowStep(4);step=4;render()};
     } else if(step===4){
-      root.innerHTML=`<div class="module-grid cols-2"><div class="module-card" style="box-shadow:none;background:#f8fbfe"><div class="module-row"><div class="module-icon">4</div><div><h3>Step 4 — VAHAN Processing</h3><p>Documents are reviewed and the record is ready for the Chrome/Edge VAHAN Automation Extension.</p></div></div><div class="automation-status"><div class="status-dot"></div><div><b>${processing?'Processing':'Ready for Processing'}</b><small>${processing?'Automation request is running…':'Web automation service connection is required for live portal actions.'}</small></div></div><div class="detail-list" style="margin-top:14px"><div class="detail-item"><label>Customer</label><b>${esc(selected?.customerName)}</b></div><div class="detail-item"><label>Chassis</label><b>${esc(selected?.chassisNo)}</b></div><div class="detail-item"><label>Documents</label><b>${Object.keys(selected?.documents||{}).length} attached</b></div><div class="detail-item"><label>Automation</label><b>Chrome / Edge Extension</b></div></div><button class="btn ${chassisCopied?'success':'primary'}" id="vahanProcessBtn" style="margin-top:14px">${chassisCopied?'✓ Chassis Copied':'📋 Copy Chassis'}</button><button class="btn soft" id="vahanAutomationRecordsBtn" type="button" style="margin-top:8px">← VAHAN Automation Records</button><button class="btn soft" id="vahanBack4" style="margin-top:8px">← Back</button></div><div class="module-card" style="box-shadow:none;background:#f8fbfe"><h3>Automation Checklist</h3><div class="check-list" style="margin-top:13px"><div class="check ok"><span>✓</span> Record selected</div><div class="check ok"><span>✓</span> Required fields validated</div><div class="check ok"><span>✓</span> Documents reviewed</div><div class="check ${chassisCopied?'ok':''}"><span>${chassisCopied?'✓':''}</span> VAHAN processing request</div><div class="check"><span></span> Registration response</div></div></div></div>`;
+      root.innerHTML=`<div class="module-grid cols-2"><div class="module-card" style="box-shadow:none;background:#f8fbfe"><div class="module-row"><div class="module-icon">4</div><div><h3>Step 4 — VAHAN Processing</h3><p>Documents are reviewed and the record is ready for the Chrome/Edge VAHAN Automation Extension.</p></div></div><div class="automation-status"><div class="status-dot"></div><div><b>${processing?'Processing':'Ready for Processing'}</b><small>${processing?'Automation request is running…':'Web automation service connection is required for live portal actions.'}</small></div></div><div class="detail-list" style="margin-top:14px"><div class="detail-item"><label>Customer</label><b>${esc(selected?.customerName)}</b></div><div class="detail-item"><label>Chassis</label><b>${esc(selected?.chassisNo)}</b></div><div class="detail-item"><label>Documents</label><b>${Object.keys(selected?.documents||{}).length} attached</b></div><div class="detail-item"><label>Automation</label><b>Chrome / Edge Extension</b></div></div><button class="btn ${chassisCopied?'success':'primary'}" id="vahanProcessBtn" style="margin-top:14px">${chassisCopied?'✓ Chassis Copied':'📋 Copy Chassis'}</button><div id="vahanAutomationControls" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px"><button class="btn soft" id="vahanAutoPause" type="button">⏸ Pause</button><button class="btn soft" id="vahanAutoResume" type="button">▶ Resume</button><button class="btn soft" id="vahanAutoRetry" type="button">↻ Retry</button><button class="btn soft" id="vahanAutoStop" type="button">■ Stop</button></div><button class="btn soft" id="vahanAutomationRecordsBtn" type="button" style="margin-top:8px">← VAHAN Automation Records</button><button class="btn soft" id="vahanBack4" style="margin-top:8px">← Back</button></div><div class="module-card" style="box-shadow:none;background:#f8fbfe"><h3>Automation Checklist</h3><div class="check-list" style="margin-top:13px"><div class="check ok"><span>✓</span> Record selected</div><div class="check ok"><span>✓</span> Required fields validated</div><div class="check ok"><span>✓</span> Documents reviewed</div><div class="check ${chassisCopied?'ok':''}"><span>${chassisCopied?'✓':''}</span> VAHAN processing request</div><div class="check"><span></span> Registration response</div></div></div></div>`;
+      q('#vahanAutoPause')?.addEventListener('click',()=>window.__AMVahanWebBridge?.pauseExtension?.());
+      q('#vahanAutoResume')?.addEventListener('click',()=>window.__AMVahanWebBridge?.resumeExtension?.());
+      q('#vahanAutoRetry')?.addEventListener('click',()=>window.__AMVahanWebBridge?.retryExtension?.());
+      q('#vahanAutoStop')?.addEventListener('click',()=>window.__AMVahanWebBridge?.stopExtension?.());
       q('#vahanAutomationRecordsBtn').onclick=()=>{window.__amVahanReset?.();};
       q('#vahanBack4').onclick=()=>{markWorkflowStep(3);step=3;render()};
       q('#vahanProcessBtn').onclick=async()=>{
