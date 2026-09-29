@@ -1,5 +1,3 @@
-Auto Management Web v1.5.4 — Developer Serial Key + Email ID validation
-
 Auto Management Web V1.4.0 — Settings & Status Polish
 
 Changes in this build:
@@ -10,11 +8,3 @@ Changes in this build:
 - Dealer Name and Dealer Code changes update the sidebar identity.
 - Startup Dashboard can be enabled/disabled; when disabled, the last opened page is restored on startup.
 - Preserved the v1.3.9 standalone monogram SVG single-render fix.
-
-
-## v1.5.0 — Dealer Admin & Operator Access
-- Dealer Admin ID/password login with salted password hashes.
-- Operator ID creation/edit/enable/disable and module permissions.
-- Current dealer/operator identity shown in the workspace and audit metadata on record changes.
-- Connected `.amdb` database files persist dealer/operator workspace metadata alongside records.
-- Existing local records and VAHAN workflow remain compatible.
