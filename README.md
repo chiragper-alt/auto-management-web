@@ -82,3 +82,19 @@ Changes in this build:
 - Linked files remain in the local Document Inbox IndexedDB and their metadata is attached to the matching Inventory record. Inventory Records includes a View documents action for linked files.
 - OCR libraries are loaded from CDN when used; internet access is required on first load. OCR suggestions must be reviewed and manually corrected when necessary.
 - Note: this build stores document binaries in the Document Inbox database; the existing Inventory/Form 22 backup file does not yet bundle Document Inbox binaries. Back up the browser profile/database separately until a unified workspace backup is implemented.
+
+## v1.4.30 — Multi-method customer-name extraction
+- Document Inbox now has an explicit per-file “Run OCR + Find Name” action (and re-run action) with progress feedback.
+- For PDFs, the scanner first extracts embedded/selectable PDF text while preserving line breaks; if a customer name is not found, it also renders PDF pages and runs OCR.
+- For scanned PDFs and image files, OCR runs at a higher render scale; it attempts English + Hindi recognition and falls back to English if language data cannot load.
+- Name matching checks common customer/name labels and Aadhaar-style “To” layouts, then uses the original filename as a fallback. The detected name remains editable before chassis linking.
+- OCR and PDF text extraction use public CDN libraries and may require internet access. Name detection is heuristic; unclear or Gujarati/Hindi-only names may still need manual entry and review.
+- Validation performed: ZIP integrity and JavaScript syntax checks only; end-to-end testing with real customer documents remains necessary.
+
+
+## v1.4.31 — Document Inbox Name Recognition and Responsive UI
+- Reworked Document Inbox into responsive compact document cards to prevent mobile/tablet UI clipping.
+- Customer name is now read-only display (not editable).
+- Run Name Scan uses embedded PDF text first, then scanned PDF/image OCR, and attempts name extraction from common Aadhaar/name-label layouts.
+- Unreadable names are explicitly shown as “Name not detected” rather than a blank field.
+- OCR quality depends on source image clarity, language and browser internet access for PDF.js/Tesseract language data; always confirm the detected name before linking.
