@@ -9,3 +9,13 @@
 
 ### First-time local HTML setup
 If Auto Management Web is opened as a local `.html` file, open `chrome://extensions`, open this extension’s Details, enable **Allow access to file URLs**, then Reload the extension and refresh Auto Management Web.
+
+## v1.4.35 — Document Inbox Code Removal
+- Removed the Document Inbox navigation entry, UI styles, initialization hook, IndexedDB module, folder scanning, OCR/document linking code, and Inventory Records links to the Document Inbox database.
+- Kept Hero Connect UI-only tabs and existing inventory import/search/backup features.
+
+
+## v1.4.46 — Financer Master Dropdown Fix
+- Customer Details Hypothecation Financer Name is a visible native select populated from the same `am_financers_v1` list as Sidebar → Financer.
+- Added shared API and local storage fallbacks, selected ID/name matching, and auto-fill of branch address, city/district, state and pincode.
+- Added an inline count/help message so an empty list is diagnosable.
