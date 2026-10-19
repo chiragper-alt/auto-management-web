@@ -638,6 +638,11 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 @media(max-width:430px){.metrics{grid-template-columns:minmax(0,1fr)!important}}
 </style>
 
+<style id="am-dashboard-active-highlight-fix">
+.side-nav .nav-item.active{background:linear-gradient(90deg,#1675d2 0%,#155b9e 100%)!important;color:#fff!important;box-shadow:inset 4px 0 #29a7ff,0 3px 10px rgba(0,70,145,.14)!important}
+.side-nav .nav-item.active .nav-label,.side-nav .nav-item.active .nav-icon,.side-nav .nav-item.active .nav-arrow{color:#fff!important}
+.side-nav .nav-item:focus-visible{outline:2px solid #62b8ff;outline-offset:2px}
+</style>
 </head>
 <body>
 <div id="amGlobalLoader" aria-hidden="true"><div class="am-loader-card"><div class="am-spinner"></div><strong id="amLoaderTitle">Working…</strong><small id="amLoaderSub">Please wait</small></div></div>
@@ -1399,7 +1404,7 @@ const dashboard=document.getElementById('dashboard-view'), pageView=document.get
   setTimeout(()=>{try{const cfg=getApplicationSettings();if(cfg.startupDashboard===false){const last=AMStorage.getItem('am_last_page');if(last&&last!=='Dashboard'&&pages[last])window.__amOpenPage?.(last);}}catch(_){}} ,0);
   
 window.__amInitImportCenter=function(root){
- const $=id=>root.querySelector('#'+id); const safe=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const $=id=>root.querySelector('#'+id); let disposed=false; const rootIsLive=()=>!disposed&&root.isConnected&&root.querySelector('.am-ic-wrap'); window.__amCleanupImportCenter=()=>{disposed=true;try{const modal=$('amIcFormatsModal');if(modal)modal.style.display='none';const settings=$('amIcTemplateSettings');if(settings){settings.classList.remove('open');settings.querySelector('#amIcPickerPage')?.replaceChildren();}items.forEach(x=>{if(x?.url)URL.revokeObjectURL(x.url)});items=[];mapTarget=null;activePickField=null;}catch(_){}}; const safe=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let mode='pdf',items=[],mapTarget=null,activeHeaders=[],activePickField=null;const FIELD_LABELS={customerName:'Owner Name',mobile:'Mobile No.',chassisNo:'Chassis No.',engineNo:'Engine No.',vehicleModel:'Vehicle Model',purchaseDeliveryDate:'Invoice Date',invoiceNo:'Invoice No.',saleAmount:'Sale Amount',address1:'Address',address2:'Address Line 2',landmark:'Landmark',pincode:'PIN Code',financerName:'Financer Name',branchAddress:'Financer Address',vehicleClass:'Vehicle Class',color:'Color'};
  const templates=()=>{try{return JSON.parse(localStorage.getItem('am_ic_pdf_templates_v1')||'{}')}catch(_){return {}}};const saveTemplates=x=>localStorage.setItem('am_ic_pdf_templates_v1',JSON.stringify(x));
  function layoutKeyFor(item){const base=String(item?.layoutKey||item?.name||'invoice').toLowerCase().replace(/\.pdf$/,'').replace(/[^a-z0-9]+/g,'-').slice(0,48);return 'manual-'+base;}
@@ -1463,8 +1468,8 @@ window.__amInitImportCenter=function(root){
   $('amIcTemplateSettings').scrollIntoView({behavior:'smooth',block:'start'});
  }
  async function renderPdfPicker(item){
-  const lib=await loadPdfJs(),doc=await lib.getDocument({data:await item.file.arrayBuffer()}).promise,page=await doc.getPage(1),base=page.getViewport({scale:1}),scale=Math.min(1.15,820/base.width),viewport=page.getViewport({scale});const wrap=$('amIcPickerPage');wrap.innerHTML='';wrap.style.width=viewport.width+'px';wrap.style.height=viewport.height+'px';wrap.style.maxWidth='100%';
-  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';wrap.appendChild(canvas);await page.render({canvasContext:ctx,viewport}).promise;
+  const lib=await loadPdfJs(); if(!rootIsLive())return; const doc=await lib.getDocument({data:await item.file.arrayBuffer()}).promise; if(!rootIsLive())return; const page=await doc.getPage(1); if(!rootIsLive())return; const base=page.getViewport({scale:1}),scale=Math.min(1.15,820/base.width),viewport=page.getViewport({scale});const wrap=$('amIcPickerPage');if(!wrap||!rootIsLive())return;wrap.innerHTML='';wrap.style.width=viewport.width+'px';wrap.style.height=viewport.height+'px';wrap.style.maxWidth='100%';
+  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';wrap.appendChild(canvas);await page.render({canvasContext:ctx,viewport}).promise; if(!rootIsLive()||!wrap.isConnected)return;
   const layer=document.createElement('div');layer.className='am-ic-picker-text';wrap.appendChild(layer);const content=await page.getTextContent();
   for(const it of content.items){if(!it.str||!it.str.trim())continue;const tx=lib.Util.transform(viewport.transform,it.transform),height=Math.max(9,Math.hypot(tx[2],tx[3])),span=document.createElement('span');span.textContent=it.str;span.title='Click to map: '+it.str;span.style.left=tx[4]+'px';span.style.top=(tx[5]-height)+'px';span.style.fontSize=height+'px';span.style.height=(height+4)+'px';span.style.width=Math.max(6,it.width*scale)+'px';span.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();if(!activePickField){feedback('First click a highlighted field on the invoice card (for example Chassis No.), then click its exact value in the preview.','error');return;}const field=activePickField;item.record=item.record||{};item.record[field]=it.str.trim();const input=$('amIcMapGrid').querySelector(`[data-pdf-field="${field}"]`);if(input)input.value=it.str.trim();layer.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));span.classList.add('selected');root.querySelectorAll(`[data-ic-pick="${mapTarget}"][data-pick-field="${field}"]`).forEach(b=>{const label=FIELD_LABELS[field];b.innerHTML=`<b>${safe(label)}:</b> ${safe(it.str.trim())}`;b.classList.add('active')});feedback(`${FIELD_LABELS[field]} mapped to: ${it.str.trim()}. Click another highlighted field on the invoice card, then select its value from the PDF.`,'success');};layer.appendChild(span);
   }
@@ -1482,6 +1487,27 @@ window.__amInitImportCenter=function(root){
 };
 
 function openPage(name){
+    // GLOBAL PAGE ISOLATION: remove inline overrides applied by special views
+    // (notably Customer / Vehicle Record) before switching to any other page.
+    // These !important styles can otherwise keep the old edit view visible over Dashboard.
+    try{
+      [pageView,pageContent].forEach(el=>{
+        if(!el)return;
+        ['display','visibility','opacity','pointer-events'].forEach(prop=>el.style.removeProperty(prop));
+      });
+    }catch(e){console.warn('[Auto Management] page style reset failed',e)}
+    // Keep sidebar selection in sync for every destination, including Dashboard.
+    // Dashboard is a static view and returns early below, so its active state must
+    // be updated before the static-page branch.
+    document.querySelectorAll('.side-nav .nav-item').forEach(item=>{
+      const selected=(item.getAttribute('data-page')||'').trim()===String(name||'').trim();
+      item.classList.toggle('active',selected);
+      item.setAttribute('aria-current',selected?'page':'false');
+    });
+    // Tear down Import Center mapping/preview before any other page is rendered.
+    try{window.__amCleanupImportCenter?.()}catch(e){console.warn('[Auto Management] Import Center cleanup failed',e)}
+    // Defensive removal of any accidentally detached/moved mapping UI from earlier navigation.
+    document.querySelectorAll('body > #amIcFormatsModal, body > #amIcTemplateSettings, #page-content > #amIcFormatsModal').forEach(el=>el.remove());
     const renderPage=()=>{
       window.__amSetLoading?.(true,'Opening '+name,'Loading workspace view…');
       if(!pages[name]){
@@ -1489,6 +1515,8 @@ function openPage(name){
         // restore its data and showroom image, and ALWAYS dismiss the global loader.
         dashboard.classList.remove('dashboard-hidden');
         pageView.classList.remove('active');
+        // Do not leave Customer Details / Mapping Preview markup mounted when returning home.
+        if(pageContent)pageContent.replaceChildren();
         amCurrentPageName='Dashboard';
         try{ window.AMData?.renderDashboard?.(); }catch(e){ console.error('[Auto Management] dashboard refresh failed',e); }
         try{ applyDealerShowroom(); }catch(e){ console.error('[Auto Management] dashboard showroom refresh failed',e); }
@@ -1498,6 +1526,8 @@ function openPage(name){
       }
       amCurrentPageName=name; try{AMStorage.setItem('am_last_page',name)}catch(_){}
       dashboard.classList.add('dashboard-hidden'); pageView.classList.add('active');
+      // Replace the entire previous view atomically; no old page nodes or detached preview UI survive.
+      pageContent.replaceChildren();
       pageContent.innerHTML=pages[name];
       if(name==='Hero Connect'){
         const hc=pageContent.querySelector('#hero-connect-ui');
