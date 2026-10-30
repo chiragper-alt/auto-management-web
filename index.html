@@ -3566,69 +3566,7 @@ input[type=checkbox],input[type=radio]{accent-color:#1769df}
 </style>
 
 
-<script id="am-extension-version-checker-v1">
-(function(){
-  if(window.__AM_EXTENSION_VERSION_CHECKER__) return;
-  window.__AM_EXTENSION_VERSION_CHECKER__=true;
-  const MANIFEST_URL='https://auto-management-web.chirag-per.workers.dev/downloads/extension/version.json';
-  const BASE_URL='https://auto-management-web.chirag-per.workers.dev/downloads/extension/';
-  let installedVersion=null, latestManifest=null, requestTimer=null;
-  const $=id=>document.getElementById(id);
-  function status(message,color){const el=$('amExtensionUpdateStatus');if(el){el.textContent=message;el.style.color=color||'#526988';}}
-  function requestInstalledVersion(){
-    installedVersion=null;
-    if($('amInstalledExtensionVersion')) $('amInstalledExtensionVersion').textContent='Checking extension…';
-    const requestId='am_ext_ver_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    function onMessage(event){
-      if(event.source!==window) return;
-      const msg=event.data||{};
-      if(msg.type!=='AM_EXTENSION_VERSION_RESPONSE'||msg.requestId!==requestId) return;
-      window.removeEventListener('message',onMessage); clearTimeout(requestTimer);
-      installedVersion=String(msg.version||'').trim()||null;
-      if($('amInstalledExtensionVersion')) $('amInstalledExtensionVersion').textContent=installedVersion?'v'+installedVersion:'Not Detected';
-      compareVersions();
-    }
-    window.addEventListener('message',onMessage);
-    window.postMessage({type:'AM_WEB_GET_EXTENSION_VERSION',requestId},'*');
-    requestTimer=setTimeout(()=>{
-      window.removeEventListener('message',onMessage);
-      if(!installedVersion && $('amInstalledExtensionVersion')) $('amInstalledExtensionVersion').textContent='Not Detected';
-      compareVersions();
-    },2200);
-  }
-  function parseVersion(v){return String(v||'').split('.').map(x=>parseInt(x,10)||0)}
-  function compare(a,b){const x=parseVersion(a),y=parseVersion(b);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1;}return 0;}
-  function compareVersions(){
-    if(!latestManifest) return;
-    const latest=String(latestManifest.version||'').trim();
-    if($('amLatestExtensionVersion')) $('amLatestExtensionVersion').textContent=latest?'v'+latest:'Unavailable';
-    if(!installedVersion){status('Extension not detected. Install or reload the extension, then check again.','#b7791f');return;}
-    if(!latest){status('Latest version information is invalid.','#b42318');return;}
-    const c=compare(installedVersion,latest);
-    if(c<0){status('Update Available — v'+latest,'#16804a');}
-    else if(c===0){status('You are using the latest version.','#16804a');}
-    else{status('Installed version is newer than the published release.','#526988');}
-  }
-  async function checkLatest(){
-    status('Checking latest release…');
-    try{
-      const r=await fetch(MANIFEST_URL,{cache:'no-store'});
-      if(!r.ok) throw new Error('Release manifest request failed (HTTP '+r.status+').');
-      const data=await r.json();
-      if(!data || !/^\d+(\.\d+){1,3}$/.test(String(data.version||'')) || !data.file) throw new Error('version.json must contain a valid version and file name.');
-      latestManifest=data;
-      const link=$('downloadVahanExtensionZip');
-      if(link){link.href=BASE_URL+encodeURIComponent(String(data.file).split('/').pop());link.download=String(data.file).split('/').pop();}
-      if($('amLatestExtensionVersion')) $('amLatestExtensionVersion').textContent='v'+data.version;
-      if($('amExtensionReleaseNotes')) $('amExtensionReleaseNotes').textContent=data.releaseNotes?'Release notes: '+data.releaseNotes:'';
-      compareVersions();
-    }catch(e){latestManifest=null;status('Could not check latest version: '+(e.message||'Network error'),'#b42318');if($('amLatestExtensionVersion'))$('amLatestExtensionVersion').textContent='Unavailable';}
-  }
-  async function runCheck(){requestInstalledVersion();await checkLatest();}
-  document.addEventListener('click',e=>{if(e.target&&e.target.closest&&e.target.closest('#amCheckExtensionUpdateBtn'))runCheck();});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',runCheck,{once:true});else runCheck();
-})();
-</script>
+
 
 </body></html>`;
    if(previewOnly){target.document.open();target.document.write(formHtml);target.document.close();if(!stamp)setForm34Status('Preview opened, but no saved stamp was found for this Financer.',true);else setForm34Status('Saved Form 34 preview opened.');return;}
@@ -4358,5 +4296,70 @@ body.am-documents-only #vahanPageHead h1{font-size:24px!important;margin:0!impor
   document.addEventListener('DOMContentLoaded',refresh);
   window.addEventListener('am-page-ready',refresh);
   setTimeout(refresh,500);
+})();
+</script>
+
+<!-- v1.6.85: Extension version checker is intentionally outside all template literals. -->
+<script id="am-extension-version-checker-v1">
+(function(){
+  if(window.__AM_EXTENSION_VERSION_CHECKER__) return;
+  window.__AM_EXTENSION_VERSION_CHECKER__=true;
+  const MANIFEST_URL='https://auto-management-web.chirag-per.workers.dev/downloads/extension/version.json';
+  const BASE_URL='https://auto-management-web.chirag-per.workers.dev/downloads/extension/';
+  let installedVersion=null, latestManifest=null, requestTimer=null;
+  const $=id=>document.getElementById(id);
+  function status(message,color){const el=$('amExtensionUpdateStatus');if(el){el.textContent=message;el.style.color=color||'#526988';}}
+  function requestInstalledVersion(){
+    installedVersion=null;
+    if($('amInstalledExtensionVersion')) $('amInstalledExtensionVersion').textContent='Checking extension…';
+    const requestId='am_ext_ver_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    function onMessage(event){
+      if(event.source!==window) return;
+      const msg=event.data||{};
+      if(msg.type!=='AM_EXTENSION_VERSION_RESPONSE'||msg.requestId!==requestId) return;
+      window.removeEventListener('message',onMessage); clearTimeout(requestTimer);
+      installedVersion=String(msg.version||'').trim()||null;
+      if($('amInstalledExtensionVersion')) $('amInstalledExtensionVersion').textContent=installedVersion?'v'+installedVersion:'Not Detected';
+      compareVersions();
+    }
+    window.addEventListener('message',onMessage);
+    window.postMessage({type:'AM_WEB_GET_EXTENSION_VERSION',requestId},'*');
+    requestTimer=setTimeout(()=>{
+      window.removeEventListener('message',onMessage);
+      if(!installedVersion && $('amInstalledExtensionVersion')) $('amInstalledExtensionVersion').textContent='Not Detected';
+      compareVersions();
+    },2200);
+  }
+  function parseVersion(v){return String(v||'').split('.').map(x=>parseInt(x,10)||0)}
+  function compare(a,b){const x=parseVersion(a),y=parseVersion(b);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1;}return 0;}
+  function compareVersions(){
+    if(!latestManifest) return;
+    const latest=String(latestManifest.version||'').trim();
+    if($('amLatestExtensionVersion')) $('amLatestExtensionVersion').textContent=latest?'v'+latest:'Unavailable';
+    if(!installedVersion){status('Extension not detected. Install or reload the extension, then check again.','#b7791f');return;}
+    if(!latest){status('Latest version information is invalid.','#b42318');return;}
+    const c=compare(installedVersion,latest);
+    if(c<0){status('Update Available — v'+latest,'#16804a');}
+    else if(c===0){status('You are using the latest version.','#16804a');}
+    else{status('Installed version is newer than the published release.','#526988');}
+  }
+  async function checkLatest(){
+    status('Checking latest release…');
+    try{
+      const r=await fetch(MANIFEST_URL,{cache:'no-store'});
+      if(!r.ok) throw new Error('Release manifest request failed (HTTP '+r.status+').');
+      const data=await r.json();
+      if(!data || !/^\d+(\.\d+){1,3}$/.test(String(data.version||'')) || !data.file) throw new Error('version.json must contain a valid version and file name.');
+      latestManifest=data;
+      const link=$('downloadVahanExtensionZip');
+      if(link){link.href=BASE_URL+encodeURIComponent(String(data.file).split('/').pop());link.download=String(data.file).split('/').pop();}
+      if($('amLatestExtensionVersion')) $('amLatestExtensionVersion').textContent='v'+data.version;
+      if($('amExtensionReleaseNotes')) $('amExtensionReleaseNotes').textContent=data.releaseNotes?'Release notes: '+data.releaseNotes:'';
+      compareVersions();
+    }catch(e){latestManifest=null;status('Could not check latest version: '+(e.message||'Network error'),'#b42318');if($('amLatestExtensionVersion'))$('amLatestExtensionVersion').textContent='Unavailable';}
+  }
+  async function runCheck(){requestInstalledVersion();await checkLatest();}
+  document.addEventListener('click',e=>{if(e.target&&e.target.closest&&e.target.closest('#amCheckExtensionUpdateBtn'))runCheck();});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',runCheck,{once:true});else runCheck();
 })();
 </script>
