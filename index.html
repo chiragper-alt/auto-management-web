@@ -1068,6 +1068,13 @@ textarea:focus,
 <style id="amExcelImportResponsiveFix">
 #amIcExcel,#amIcExcel *{box-sizing:border-box}#amIcExcel .am-ic-excel-workspace{width:100%;min-width:0;max-width:100%;overflow:hidden}#amExcelMapping,#amExcelPreviewWrap{width:100%;min-width:0;max-width:100%}#amExcelMappingGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#amExcelMappingGrid .am-excel-field{display:block;min-width:0;max-width:100%;overflow:hidden;font-size:13px;font-weight:600}#amExcelMappingGrid select{display:block;width:100%;max-width:100%;min-width:0;font-size:14px}#amExcelActionBar button{min-height:42px}#amExcelPreviewWrap>div[style*="overflow:auto"]{max-width:100%;min-width:0}#amExcelPreviewTable{min-width:600px}@media(max-width:700px){#amExcelMappingGrid{grid-template-columns:minmax(0,1fr)!important;max-height:52vh!important}#amExcelMapping>div:first-child{align-items:flex-start!important;flex-direction:column!important}#amExcelMapping>div:first-child>div:last-child{width:100%;display:flex;flex-wrap:wrap}#amExcelMapping>div:first-child button{flex:1}#amExcelActionBar{justify-content:stretch!important}#amExcelActionBar button{flex:1;min-width:0}#amExcelMapStatus,#amExcelActionHint{overflow-wrap:anywhere}}
 </style>
+
+<style id="am-v1684-prepaint-auth-guard">
+/* Prevent dashboard/sidebar content from flashing before login state is resolved. */
+html body:not(.am-auth-ready) .app-shell{visibility:hidden!important;opacity:0!important;pointer-events:none!important;}
+html body.am-auth-ready .app-shell{visibility:visible!important;opacity:1!important;pointer-events:auto!important;}
+#am-auth-gate{z-index:2147483000!important;}
+</style>
 </head>
 <body>
 <div id="amGlobalLoader" aria-hidden="true"><div class="am-loader-card"><div class="am-spinner"></div><strong id="amLoaderTitle">Working…</strong><small id="amLoaderSub">Please wait</small></div></div>
@@ -1195,7 +1202,13 @@ textarea:focus,
 (function(){
   if(window.__AM_PERSISTENT_FILE_DB__) return;
   const KEY='am_master_records_v1';
+  const HANDLE_DB='AM_PERSISTENT_DB_HANDLE_V1';
   let handle=null, connected=false, syncing=false, queued=false, lastError='';
+  function openHandleStore(){return new Promise((resolve,reject)=>{const r=indexedDB.open(HANDLE_DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('handles'))r.result.createObjectStore('handles')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error||new Error('Could not open saved database-handle storage'));});}
+  async function saveHandle(h){const db=await openHandleStore();try{await new Promise((resolve,reject)=>{const tx=db.transaction('handles','readwrite');tx.objectStore('handles').put(h,'active');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Could not save database file handle'));});}finally{db.close();}}
+  async function loadHandle(){const db=await openHandleStore();try{return await new Promise((resolve,reject)=>{const tx=db.transaction('handles','readonly'),r=tx.objectStore('handles').get('active');r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error||new Error('Could not load saved database file handle'));});}finally{db.close();}}
+  async function verifyConnection(){if(!handle)return false;try{const p=await handle.queryPermission({mode:'readwrite'});if(p!=='granted'){connected=false;return false;}const f=await handle.getFile();if(!f)return false;const txt=await f.text();const data=JSON.parse(txt);if(data?.format!=='Auto Management Local JSON Database')return false;connected=true;return true;}catch(e){connected=false;lastError=e?.message||String(e);return false;}}
+  async function restoreSavedHandle(){try{const h=await loadHandle();if(h){handle=h;const ok=await verifyConnection();window.dispatchEvent(new CustomEvent('am-persistent-db-status',{detail:{connected:ok,name:handle.name||'',error:ok?'':lastError}}));}}catch(e){connected=false;lastError=e?.message||String(e);window.dispatchEvent(new CustomEvent('am-persistent-db-status',{detail:{connected:false,error:lastError}}));}}
   function supported(){return !!window.showOpenFilePicker && !!window.showSaveFilePicker;}
   function allStorage(){const out={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k!=null)out[k]=localStorage.getItem(k)}}catch(e){}return out;}
   function normId(v){return String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'default-dealer'}
@@ -1252,11 +1265,12 @@ textarea:focus,
     window.dispatchEvent(new CustomEvent('am-persistent-db-loaded',{detail:{records:rows,database:data,dealerId:storedDealer||current.dealerId}}));
     return rows;
   }
-  async function connect(){if(!supported())throw new Error('Persistent JSON database files require Chrome or another Chromium browser with File System Access support.');const arr=await window.showOpenFilePicker({multiple:false,types:fileTypes});const nextHandle=arr[0];const file=await nextHandle.getFile();const txt=await file.text();let data=null;if(txt.trim()){try{data=JSON.parse(txt)}catch(_){throw new Error('Database JSON is damaged or invalid. No data was restored.');}}const rows=await applyDatabase(data||makeDatabase([]));handle=nextHandle;connected=true;localStorage.setItem('am_persistent_db_connected','1');window.dispatchEvent(new CustomEvent('am-persistent-db-status',{detail:{connected:true,name:handle.name,dealerId:identity().dealerId}}));return rows;}
-  async function create(records){if(!supported())throw new Error('Persistent JSON database files require Chrome or another Chromium browser with File System Access support.');const id=identity();const suggested='auto-management-'+id.key+'-database.json';const nextHandle=await window.showSaveFilePicker({suggestedName:suggested,types:fileTypes});handle=nextHandle;connected=true;await writeFile(Array.isArray(records)?records:[]);localStorage.setItem('am_persistent_db_connected','1');window.dispatchEvent(new CustomEvent('am-persistent-db-status',{detail:{connected:true,name:handle.name,dealerId:id.dealerId}}));return records||[];}
+  async function connect(){if(!supported())throw new Error('Persistent JSON database files require Chrome or another Chromium browser with File System Access support.');const arr=await window.showOpenFilePicker({multiple:false,types:fileTypes});const nextHandle=arr[0];const file=await nextHandle.getFile();const txt=await file.text();let data=null;if(txt.trim()){try{data=JSON.parse(txt)}catch(_){throw new Error('Database JSON is damaged or invalid. No data was restored.');}}const rows=await applyDatabase(data||makeDatabase([]));handle=nextHandle;await saveHandle(handle);connected=true;localStorage.setItem('am_persistent_db_connected','1');window.dispatchEvent(new CustomEvent('am-persistent-db-status',{detail:{connected:true,name:handle.name,dealerId:identity().dealerId}}));return rows;}
+  async function create(records){if(!supported())throw new Error('Persistent JSON database files require Chrome or another Chromium browser with File System Access support.');const id=identity();const suggested='auto-management-'+id.key+'-database.json';const nextHandle=await window.showSaveFilePicker({suggestedName:suggested,types:fileTypes});handle=nextHandle;await saveHandle(handle);connected=true;await writeFile(Array.isArray(records)?records:[]);localStorage.setItem('am_persistent_db_connected','1');window.dispatchEvent(new CustomEvent('am-persistent-db-status',{detail:{connected:true,name:handle.name,dealerId:id.dealerId}}));return records||[];}
   function scheduleSync(){if(!handle||queued)return;queued=true;setTimeout(async()=>{queued=false;try{const raw=localStorage.getItem(KEY)||'[]';let records=[];try{records=JSON.parse(raw)}catch(_){throw new Error('Master Records JSON is invalid; database sync was skipped.');}if(!Array.isArray(records))throw new Error('Master Records must be an array; database sync was skipped.');await writeFile(records)}catch(e){lastError=e.message||String(e);window.dispatchEvent(new CustomEvent('am-persistent-db-status',{detail:{connected:false,error:lastError,name:handle?.name||''}}));}},350);}
   try{const proto=Storage.prototype;if(!proto.__amDbPatched){const oldSet=proto.setItem,oldRemove=proto.removeItem;proto.setItem=function(k,v){oldSet.call(this,k,v);if(this===window.localStorage&&String(k)!=='am_persistent_db_connected')scheduleSync()};proto.removeItem=function(k){oldRemove.call(this,k);if(this===window.localStorage)scheduleSync()};proto.__amDbPatched=true;}}catch(_){}
-  window.__AM_PERSISTENT_FILE_DB__={supported,connect,create,readFile,writeFile,exportCurrent:async records=>{if(!handle)return false;await writeFile(records);return true},isConnected:()=>connected,getName:()=>handle?.name||'',getLastError:()=>lastError,getDatabaseSnapshot:()=>makeDatabase([]),getIdentity:identity,readLocalDocuments,restoreLocalDocuments};
+  window.__AM_PERSISTENT_FILE_DB__={supported,connect,create,readFile,writeFile,exportCurrent:async records=>{if(!handle)return false;await writeFile(records);return true},isConnected:()=>connected,getName:()=>handle?.name||'',getLastError:()=>lastError,getStatus:async()=>({connected:await verifyConnection(),name:handle?.name||'',error:lastError}),getDatabaseSnapshot:()=>makeDatabase([]),getIdentity:identity,readLocalDocuments,restoreLocalDocuments};
+  restoreSavedHandle();
 })();
 </script>
 <script>
@@ -1666,10 +1680,35 @@ const dashboard=document.getElementById('dashboard-view'), pageView=document.get
   function setupImportSettingsUI(){
     const pdbBtn=document.getElementById('connectPersistentDbBtn');
     const pdbStatus=document.getElementById('persistentDbStatus');
-    const setPdbStatus=(ok,name)=>{if(!pdbStatus)return;pdbStatus.textContent=ok?'Connected'+(name?' • '+name:''):'Not connected';pdbStatus.className='pill '+(ok?'green':'gray');};
+    const setPdbStatus=(ok,name)=>{
+      if(!pdbStatus)return;
+      pdbStatus.textContent=ok?'Connected'+(name?' • '+name:''):'Not connected';
+      pdbStatus.className='pill '+(ok?'green':'gray');
+    };
+    const refreshPdbStatus=async()=>{
+      try{
+        const st=await window.__AM_PERSISTENT_FILE_DB__?.getStatus?.();
+        setPdbStatus(!!st?.connected,st?.name||'');
+      }catch(_){setPdbStatus(false,'');}
+    };
+    refreshPdbStatus();
     const createPdbBtn=document.getElementById('createPersistentDbBtn');
-    createPdbBtn?.addEventListener('click',async()=>{try{window.__amButtonBusy?.(createPdbBtn,true,'Creating…');const before=window.AMData?.read?.()||[];await window.__AM_PERSISTENT_FILE_DB__.create(before);setPdbStatus(true,window.__AM_PERSISTENT_FILE_DB__.getName?.());window.__amNotify?.('Database file created and '+before.length+' record(s) saved.');}catch(e){if(e?.name!=='AbortError')window.__amNotifyError?.('Database creation failed: '+(e?.message||e));}finally{window.__amButtonBusy?.(createPdbBtn,false);}});
-    pdbBtn?.addEventListener('click',async()=>{try{window.__amButtonBusy?.(pdbBtn,true,'Connecting…');const rows=await window.__AM_PERSISTENT_FILE_DB__.connect();window.AMData?.write?.(rows||[]);setPdbStatus(true,window.__AM_PERSISTENT_FILE_DB__.getName?.());window.__amNotify?.('Persistent database loaded: '+(rows?.length||0)+' record(s)');}catch(e){if(e?.name!=='AbortError')window.__amNotifyError?.('Database connection failed: '+(e?.message||e));}finally{window.__amButtonBusy?.(pdbBtn,false);}});
+    if(createPdbBtn&&!createPdbBtn.dataset.dbBound){
+      createPdbBtn.dataset.dbBound='1';
+      createPdbBtn.addEventListener('click',async()=>{
+        try{window.__amButtonBusy?.(createPdbBtn,true,'Creating…');const before=window.AMData?.read?.()||[];await window.__AM_PERSISTENT_FILE_DB__.create(before);await refreshPdbStatus();window.__amNotify?.('Database file created and '+before.length+' record(s) saved.');}
+        catch(e){if(e?.name!=='AbortError')window.__amNotifyError?.('Database creation failed: '+(e?.message||e));}
+        finally{window.__amButtonBusy?.(createPdbBtn,false);}
+      });
+    }
+    if(pdbBtn&&!pdbBtn.dataset.dbBound){
+      pdbBtn.dataset.dbBound='1';
+      pdbBtn.addEventListener('click',async()=>{
+        try{window.__amButtonBusy?.(pdbBtn,true,'Connecting…');const rows=await window.__AM_PERSISTENT_FILE_DB__.connect();window.AMData?.write?.(rows||[]);await refreshPdbStatus();window.__amNotify?.('Persistent database loaded: '+(rows?.length||0)+' record(s)');}
+        catch(e){if(e?.name!=='AbortError')window.__amNotifyError?.('Database connection failed: '+(e?.message||e));}
+        finally{window.__amButtonBusy?.(pdbBtn,false);}
+      });
+    }
     window.addEventListener('am-persistent-db-status',e=>setPdbStatus(!!e.detail?.connected,e.detail?.name));
   }
   function setupExtensionApiUI(){
@@ -3747,6 +3786,7 @@ button:disabled,.btn:disabled,.primary-btn:disabled{opacity:.55;cursor:not-allow
  }
  function restore(){try{const x=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');if(x&&x.expiresAt>Date.now())session=x;else sessionStorage.removeItem(SESSION_KEY)}catch(_){session=null}}
  function activate(){
+  document.body.classList.add('am-auth-ready');
   if(gate){gate.remove();gate=null}
   const profile=document.querySelector('.admin-profile');
   if(profile){
@@ -3771,10 +3811,10 @@ button:disabled,.btn:disabled,.primary-btn:disabled{opacity:.55;cursor:not-allow
   document.querySelectorAll('.nav-item[data-page]').forEach(n=>{const pg=n.getAttribute('data-page');n.style.display=allowed(pg)?'':'none'});
   if(session.role==='operator'){const first=(session.permissions||[]).find(x=>x!=='Dashboard');if(!allowed('Dashboard')){const pg=first==='Master Records'?'Master Records':first==='Import Center'?'Import Center':first==='Insurance'?'Insurance':first==='Documents'?'Documents':first==='Reports'?'Reports':'Dashboard';window.__amOpenPage?.(pg)}}
  }
- function logout(){session=null;sessionStorage.removeItem(SESSION_KEY);if(userbar){userbar.remove();userbar=null}const p=document.querySelector('.topbar .admin-profile');if(p){p.classList.remove('am-auth-profile-ready');p.onclick=null;p.onkeydown=null;p.querySelector('#am-auth-profile-menu')?.remove();const a=p.querySelector('.avatar');if(a)a.textContent='A';const n=p.querySelector('strong');if(n)n.textContent='Admin'}document.querySelectorAll('.nav-item[data-page]').forEach(n=>n.style.display='');showGate('dealer')}
+ function logout(){document.body.classList.remove('am-auth-ready');session=null;sessionStorage.removeItem(SESSION_KEY);if(userbar){userbar.remove();userbar=null}const p=document.querySelector('.topbar .admin-profile');if(p){p.classList.remove('am-auth-profile-ready');p.onclick=null;p.onkeydown=null;p.querySelector('#am-auth-profile-menu')?.remove();const a=p.querySelector('.avatar');if(a)a.textContent='A';const n=p.querySelector('strong');if(n)n.textContent='Admin'}document.querySelectorAll('.nav-item[data-page]').forEach(n=>n.style.display='');showGate('dealer')}
  document.addEventListener('click',e=>{const page=getPageFromTarget(e.target);if(page&&!allowed(page)){e.preventDefault();e.stopImmediatePropagation();if(session&&!sessionIsValid())logout();else window.__amNotify?.('You do not have permission to open this module.')}},true);
  const originalOpen=window.__amOpenPage;if(typeof originalOpen==='function'&&!originalOpen.__amWrapped){const wrapped=function(page){if(!allowed(String(page))){if(session&&!sessionIsValid())logout();else window.__amNotify?.('You do not have permission to open this module.');return}return originalOpen.apply(this,arguments)};wrapped.__amWrapped=true;window.__amOpenPage=wrapped}
- restore();if(session)activate();else showGate('dealer');
+ restore();if(session)activate();else{document.body.classList.remove('am-auth-ready');showGate('dealer');}
  window.__amAuthGetSession=()=>session?{...session}:null;window.__amAuthLogout=logout;
 
 })();
@@ -4213,3 +4253,39 @@ body.am-documents-only #vahanPageHead h1{font-size:24px!important;margin:0!impor
   object-fit:contain!important;object-position:center!important;border-radius:0!important;
 }
 </style>
+
+<script id="am-v182-persistent-db-dashboard-notice">
+(function(){
+  const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function render(connected,name){
+    const host=document.getElementById('dashboardAnnouncements');
+    if(!host)return;
+    const old=host.querySelector('[data-am-db-notice]');
+    if(connected){old?.remove();if(!host.children.length)host.innerHTML='<div class="announcement"><i class="ann blue">i</i><div><b>No announcements</b><small>Dealer notices will appear here when configured.</small></div></div>';return;}
+    if(old)return;
+    if(host.querySelector('.announcement b')?.textContent==='No announcements')host.innerHTML='';
+    const item=document.createElement('div');
+    item.className='announcement';item.dataset.amDbNotice='1';
+    item.innerHTML='<i class="ann orange">!</i><div><b>Connect Persistent Database</b><small>Database file is not connected. Click here to open Data &amp; Import Settings and connect your database file.</small><button type="button" class="am-db-connect-link" style="margin-top:7px;padding:5px 9px;border:1px solid #c8d4e1;border-radius:5px;background:#f4f7fa;color:#17324f;font-size:10px;font-weight:700;cursor:pointer">Open Database Settings</button></div>';
+    const go=()=>{
+      if(typeof window.__amOpenPage==='function')window.__amOpenPage('Settings');
+      setTimeout(()=>{
+        const tab=document.querySelector('.settings-nav button[data-setting="data"]');
+        if(tab)tab.click();
+        document.getElementById('settingsDataImport')?.scrollIntoView({behavior:'smooth',block:'start'});
+      },80);
+    };
+    item.addEventListener('click',go);
+    host.appendChild(item);
+  }
+  async function refresh(){
+    try{const st=await window.__AM_PERSISTENT_FILE_DB__?.getStatus?.();render(!!st?.connected,st?.name||'');}
+    catch(_){render(false,'');}
+  }
+  window.addEventListener('am-persistent-db-status',e=>render(!!e.detail?.connected,e.detail?.name||''));
+  window.addEventListener('am-persistent-db-loaded',refresh);
+  document.addEventListener('DOMContentLoaded',refresh);
+  window.addEventListener('am-page-ready',refresh);
+  setTimeout(refresh,500);
+})();
+</script>
