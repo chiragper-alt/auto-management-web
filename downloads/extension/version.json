@@ -1,5 +1,5 @@
 {
-  "version": "1.3.59",
-  "file": "Auto_Management_VAHAN_Extension.zip",
-  "releaseNotes": "Initial extension release"
+  "version": "1.3.60",
+  "file": "Auto_Management_VAHAN_Extension_v1.3.60_VERSION_DETECTION.zip",
+  "releaseNotes": "Added automatic installed version detection and update checker."
 }
