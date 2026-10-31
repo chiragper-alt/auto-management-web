@@ -3817,6 +3817,166 @@ input[type=checkbox],input[type=radio]{accent-color:#1769df}
 }
 </style>
 
+
+<style id="am-extension-premium-layout-v2">
+/* Premium, software-matched extension update panel */
+#settingsExtension .setting-row:has(#amExtensionVersionPanel){
+  display:grid!important;
+  grid-template-columns:minmax(180px,230px) minmax(0,1fr)!important;
+  align-items:start!important;gap:16px!important
+}
+#settingsExtension .setting-row:has(#amExtensionVersionPanel)>div:first-child{
+  padding:8px 4px 0 0;max-width:none!important;min-width:0!important
+}
+#settingsExtension .am-extension-update-card{
+  width:100%;max-width:none!important;min-width:0!important;flex:none!important;
+  margin:0!important;padding:14px 16px!important;box-sizing:border-box;
+  display:flex!important;flex-direction:column!important;align-items:stretch!important;
+  gap:11px!important;border:1px solid #dce5ef!important;border-radius:11px!important;
+  background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%)!important;
+  box-shadow:0 2px 7px rgba(28,52,78,.045)
+}
+#settingsExtension .am-extension-version-line{
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  gap:10px!important;flex-wrap:wrap!important;white-space:normal!important;
+  min-height:25px;padding-bottom:9px;border-bottom:1px solid #e9eef4;
+  color:#718198!important;font-size:11px!important
+}
+#settingsExtension .am-extension-version-line b{
+  display:inline-flex;align-items:center;min-height:23px;padding:3px 8px;
+  border:1px solid #e1e8f0;border-radius:6px;background:#f5f8fb;
+  color:#263f59!important;font-size:12px!important;font-weight:700
+}
+#settingsExtension .am-extension-separator{color:#a6b2bf!important}
+#settingsExtension .am-extension-action-line{
+  display:flex!important;flex-direction:column!important;align-items:stretch!important;
+  justify-content:flex-start!important;gap:9px!important;min-height:0!important
+}
+#settingsExtension #amExtensionUpdateStatus{
+  display:block!important;flex:0 0 auto!important;width:100%!important;max-width:none!important;
+  min-width:0!important;min-height:18px!important;max-height:none!important;
+  overflow:visible!important;white-space:normal!important;overflow-wrap:anywhere!important;
+  color:#536b84!important;font-size:11px!important;line-height:1.45!important
+}
+#settingsExtension .am-extension-action-line:after{
+  content:"";display:block;order:2
+}
+#settingsExtension #amCheckExtensionUpdateBtn,
+#settingsExtension #downloadVahanExtensionZip{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  flex:0 0 auto!important;min-width:148px;min-height:35px!important;
+  margin:0!important;padding:8px 14px!important;border-radius:7px!important;
+  font-size:11px!important;font-weight:600!important;line-height:1.2!important;
+  white-space:nowrap!important;text-decoration:none!important;box-sizing:border-box
+}
+#settingsExtension .am-extension-action-line{
+  display:grid!important;grid-template-columns:1fr!important;gap:9px!important
+}
+#settingsExtension #amCheckExtensionUpdateBtn,
+#settingsExtension #downloadVahanExtensionZip{width:100%!important}
+#settingsExtension .am-extension-release-notes{
+  display:none!important
+}
+#settingsExtension .am-extension-download-status{
+  display:block!important;width:100%;min-height:14px;max-height:none!important;
+  overflow:visible!important;padding-top:8px;border-top:1px solid #edf1f5;
+  color:#7b8b9c!important;font-size:10px!important;line-height:1.4!important;
+  overflow-wrap:anywhere
+}
+@media(max-width:760px){
+  #settingsExtension .setting-row:has(#amExtensionVersionPanel){
+    grid-template-columns:minmax(0,1fr)!important;gap:9px!important
+  }
+  #settingsExtension .setting-row:has(#amExtensionVersionPanel)>div:first-child{
+    padding:0!important
+  }
+}
+</style>
+
+
+<style id="am-docs-premium-thumbnail-v3">
+/* Premium document tray: crisp rectangular preview cards, no circular thumbnail treatment */
+.am-docs-ui-only #amDocsThumbTray{
+  display:flex!important;align-items:stretch!important;gap:12px!important;
+  min-height:0!important;max-height:190px!important;padding:12px 3px 14px!important;
+  overflow-x:auto!important;overflow-y:hidden!important;
+  scroll-snap-type:x proximity!important;overscroll-behavior-x:contain!important
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb{
+  position:relative!important;display:flex!important;flex:0 0 116px!important;
+  flex-direction:column!important;align-items:stretch!important;gap:0!important;
+  width:116px!important;min-width:116px!important;min-height:148px!important;
+  padding:8px!important;margin:0!important;box-sizing:border-box!important;
+  border:1px solid #d8e2ec!important;border-radius:9px!important;
+  background:#fff!important;color:#334b63!important;text-align:left!important;
+  box-shadow:0 2px 7px rgba(25,55,85,.055)!important;
+  scroll-snap-align:start!important;overflow:hidden!important
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb:hover{
+  border-color:#9db9d5!important;box-shadow:0 4px 12px rgba(25,55,85,.10)!important;
+  transform:translateY(-1px)
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb:focus{
+  outline:2px solid #3b82c4!important;outline-offset:2px!important
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb.is-assigned{
+  opacity:1!important;border-color:#a8cdb6!important;background:#f8fcf9!important
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview{
+  position:relative!important;display:flex!important;align-items:center!important;
+  justify-content:center!important;width:100%!important;height:102px!important;
+  min-height:102px!important;flex:0 0 102px!important;box-sizing:border-box!important;
+  margin:0 0 8px!important;padding:7px!important;overflow:hidden!important;
+  border:1px solid #e3eaf1!important;border-radius:5px!important;
+  background:linear-gradient(180deg,#f8fafc 0%,#eef3f8 100%)!important
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview img{
+  display:block!important;width:100%!important;height:100%!important;
+  max-width:100%!important;max-height:100%!important;object-fit:contain!important;
+  object-position:center!important;border:0!important;border-radius:2px!important;
+  background:#fff!important
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview .pdf-mark{
+  position:relative!important;display:flex!important;align-items:center!important;
+  justify-content:center!important;width:54px!important;height:70px!important;
+  box-sizing:border-box!important;margin:0!important;padding:0 3px 0!important;
+  border:1px solid #d8e1eb!important;border-radius:3px!important;
+  background:#fff!important;color:#c74646!important;
+  box-shadow:0 2px 5px rgba(35,55,75,.10)!important;
+  font-size:13px!important;font-weight:800!important;letter-spacing:.35px!important
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview .pdf-mark:before{
+  content:"";position:absolute;left:0;right:0;top:0;height:5px;
+  background:#c74646;border-radius:2px 2px 0 0
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview .pdf-mark:after{
+  content:"";position:absolute;left:9px;right:9px;bottom:12px;height:1px;
+  background:#e5eaf0;box-shadow:0 -6px 0 #e5eaf0
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-name{
+  display:block!important;width:100%!important;min-width:0!important;
+  margin:0!important;padding:0 1px!important;color:#435b73!important;
+  font-size:10px!important;font-weight:600!important;line-height:1.35!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+  text-align:left!important
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb.is-assigned:after{
+  content:"Assigned";position:absolute;right:5px;top:5px;z-index:2;
+  padding:2px 5px;border-radius:4px;background:#e8f5ec;color:#28734a;
+  font-size:8px;font-weight:700;line-height:1.2
+}
+@media(max-width:560px){
+  .am-docs-ui-only #amDocsThumbTray{max-height:176px!important;gap:9px!important}
+  .am-docs-ui-only #amDocsThumbTray .am-doc-thumb{
+    flex-basis:104px!important;width:104px!important;min-width:104px!important;
+    min-height:136px!important;padding:7px!important
+  }
+  .am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview{
+    height:92px!important;min-height:92px!important;flex-basis:92px!important
+  }
+}
+</style>
+
 </body></html>`;
    if(previewOnly){target.document.open();target.document.write(formHtml);target.document.close();if(!stamp)setForm34Status('Preview opened, but no saved stamp was found for this Financer.',true);else setForm34Status('Saved Form 34 preview opened.');return;}
    try{
