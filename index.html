@@ -4068,6 +4068,50 @@ input[type=checkbox],input[type=radio]{accent-color:#1769df}
 }
 </style>
 
+
+<style id="am-v1701-sidebar-docs-flat-polish">
+/* v1.7.01: remove the redundant identity card from the sidebar */
+.sidebar .sidebar-dealer{display:none!important}
+
+/* Flat, clean document upload thumbnails: remove any inherited circular outlines */
+.am-documents-only .am-docs-ui-only .am-doc-thumb{
+  border:1px solid #e1e7ee!important;border-radius:8px!important;
+  background:#fff!important;box-shadow:none!important;transform:none!important;
+}
+.am-documents-only .am-docs-ui-only .am-doc-thumb-preview{
+  width:100%!important;height:88px!important;min-height:88px!important;flex:0 0 88px!important;
+  margin:0 0 7px!important;padding:0!important;box-sizing:border-box!important;
+  border:1px solid #e7ebf0!important;border-radius:6px!important;
+  background:#f7f9fb!important;box-shadow:none!important;outline:0!important;
+}
+.am-documents-only .am-docs-ui-only .am-doc-thumb-preview::before,
+.am-documents-only .am-docs-ui-only .am-doc-thumb-preview::after,
+.am-documents-only .am-docs-ui-only .am-doc-thumb::before,
+.am-documents-only .am-docs-ui-only .am-doc-thumb::after{content:none!important;display:none!important}
+.am-documents-only .am-docs-ui-only .am-doc-thumb-preview .pdf-mark{
+  width:54px!important;height:66px!important;box-sizing:border-box!important;
+  border:1px solid #e1e6ed!important;border-radius:4px!important;
+  background:#fff!important;color:#d65b5b!important;box-shadow:none!important;
+}
+.am-documents-only .am-docs-ui-only .am-doc-thumb-preview .pdf-mark::before{
+  content:none!important;display:none!important
+}
+.am-documents-only .am-docs-ui-only .am-doc-thumb-preview .pdf-mark::after{
+  content:""!important;display:block!important;position:absolute!important;
+  left:10px!important;right:10px!important;bottom:13px!important;height:1px!important;
+  background:#e8edf2!important;box-shadow:0 -6px 0 #e8edf2!important
+}
+.am-documents-only .am-docs-ui-only .am-doc-thumb-name{
+  font-size:10px!important;color:#526477!important;font-weight:500!important
+}
+.am-documents-only .am-docs-ui-only .am-doc-thumb.is-assigned{
+  border-color:#b9d7c2!important;background:#fbfefc!important;box-shadow:none!important
+}
+@media(max-width:560px){
+ .am-documents-only .am-docs-ui-only .am-doc-thumb{flex-basis:84px!important;width:84px!important}
+}
+</style>
+
 </body></html>`;
    if(previewOnly){target.document.open();target.document.write(formHtml);target.document.close();if(!stamp)setForm34Status('Preview opened, but no saved stamp was found for this Financer.',true);else setForm34Status('Saved Form 34 preview opened.');return;}
    try{
