@@ -12,3 +12,9 @@ Checks performed:
 - Grep audit found no remaining legacy Excel import/mapping functions or parser globals in application source.
 - ZIP integrity checked after packaging.
 - Browser live test not performed in this environment.
+
+
+## v1.6.53 — Customer-field-based Excel mapping
+- Mapping destinations are stable Customer Details fields; Excel column names are only source choices.
+- Added address, landmark, city/town, district, state, pincode, mobile, HPA, purchase date and bill fields.
+- Excel header aliases are used only for Auto-map suggestions and can vary by dealer format.
