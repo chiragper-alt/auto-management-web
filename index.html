@@ -1160,6 +1160,97 @@ html body.am-auth-ready .app-shell{visibility:visible!important;opacity:1!import
 }
 </style>
 
+
+<style id="am-v1716-add-files-thumbnail-tile">
+/* Keep the upload action as the final square tile in the thumbnail row */
+.am-docs-ui-only #amDocsThumbTray{
+  display:flex!important;align-items:center!important;flex-wrap:nowrap!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-add-tile{
+  position:relative!important;display:flex!important;flex:0 0 76px!important;
+  align-self:center!important;align-items:center!important;justify-content:center!important;
+  flex-direction:column!important;gap:3px!important;
+  width:76px!important;height:76px!important;min-width:76px!important;min-height:76px!important;
+  max-width:76px!important;max-height:76px!important;box-sizing:border-box!important;
+  margin:0 2px 0 auto!important;padding:7px!important;
+  border:1px dashed #9bb9d7!important;border-radius:9px!important;
+  background:#f7fbff!important;color:#1769bd!important;
+  cursor:pointer!important;scroll-snap-align:start!important;
+  transition:border-color .15s ease,background .15s ease,transform .15s ease!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-add-tile:hover{
+  border-color:#287acb!important;background:#edf6ff!important;transform:translateY(-1px)!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-add-tile span{
+  display:block!important;font-size:28px!important;font-weight:400!important;line-height:28px!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-add-tile small{
+  display:block!important;font-size:10px!important;font-weight:700!important;line-height:1.2!important;color:#376b9e!important;
+}
+@media(max-width:560px){
+  .am-docs-ui-only #amDocsThumbTray .am-doc-add-tile{
+    flex-basis:66px!important;width:66px!important;height:66px!important;
+    min-width:66px!important;min-height:66px!important;max-width:66px!important;max-height:66px!important;
+  }
+}
+</style>
+
+
+<style id="am-v1717-square-document-thumbnails">
+/* Make every document thumbnail match the square Add Files tile */
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb{
+  position:relative!important;display:flex!important;flex:0 0 76px!important;
+  align-items:stretch!important;justify-content:flex-start!important;flex-direction:column!important;
+  gap:3px!important;width:76px!important;height:76px!important;
+  min-width:76px!important;min-height:76px!important;max-width:76px!important;max-height:76px!important;
+  box-sizing:border-box!important;padding:5px!important;margin:0!important;
+  border:1px solid #d8e2ec!important;border-radius:9px!important;
+  background:#f7fbff!important;color:#334b63!important;text-align:center!important;
+  box-shadow:none!important;overflow:hidden!important;scroll-snap-align:start!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb:hover{
+  border-color:#9bbce0!important;background:#f1f7fd!important;box-shadow:none!important;transform:translateY(-1px)!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview{
+  display:flex!important;flex:1 1 auto!important;align-items:center!important;justify-content:center!important;
+  width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
+  margin:0!important;padding:0!important;overflow:hidden!important;
+  border:0!important;border-radius:5px!important;background:transparent!important;box-shadow:none!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview img{
+  width:100%!important;height:100%!important;object-fit:contain!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview .pdf-mark{
+  font-size:22px!important;line-height:1!important;font-weight:800!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-name{
+  display:block!important;flex:0 0 12px!important;width:100%!important;max-width:100%!important;
+  height:12px!important;margin:0!important;padding:0 1px!important;
+  overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+  font-size:8px!important;line-height:12px!important;text-align:center!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb.is-assigned{
+  border-color:#b9d7c2!important;background:#f5fbf6!important;opacity:1!important;
+}
+.am-docs-ui-only #amDocsThumbTray .am-doc-thumb > button.am-doc-remove-x{
+  top:2px!important;right:2px!important;width:17px!important;height:17px!important;
+  min-width:17px!important;min-height:17px!important;font-size:17px!important;line-height:17px!important;
+}
+@media(max-width:560px){
+  .am-docs-ui-only #amDocsThumbTray{gap:8px!important;min-height:78px!important;max-height:100px!important}
+  .am-docs-ui-only #amDocsThumbTray .am-doc-thumb{
+    flex-basis:66px!important;width:66px!important;height:66px!important;
+    min-width:66px!important;min-height:66px!important;max-width:66px!important;max-height:66px!important;
+    padding:4px!important;
+  }
+  .am-docs-ui-only #amDocsThumbTray .am-doc-thumb-name{font-size:7px!important;line-height:10px!important;height:10px!important;flex-basis:10px!important}
+  .am-docs-ui-only #amDocsThumbTray .am-doc-thumb > button.am-doc-remove-x{
+    top:1px!important;right:1px!important;width:16px!important;height:16px!important;
+    min-width:16px!important;min-height:16px!important;font-size:16px!important;line-height:16px!important;
+  }
+}
+</style>
+
 </head>
 <body>
 <div id="amGlobalLoader" aria-hidden="true"><div class="am-loader-card"><div class="am-spinner"></div><strong id="amLoaderTitle">Working…</strong><small id="amLoaderSub">Please wait</small></div></div>
@@ -3245,7 +3336,7 @@ body.am-documents-only #vahanPageHead h1::before{content:none!important}
    document.body.classList.add('am-documents-only');
    root.innerHTML=`<div class="page-head" style="margin:0 0 18px"><div><h1 style="font-size:24px;margin:0;color:#20364e">Documents</h1></div></div>
    <div class="am-docs-ui-only">
-    <section class="am-docs-upload-card"><div class="am-docs-title-row"><h2>Upload Documents to Software</h2><label class="btn soft" style="cursor:pointer">＋ Add Multiple Files<input id="amDocsChooseMany" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple style="display:none"></label></div><p class="am-docs-muted">All selected documents appear in one thumbnail row. Drag a thumbnail into its matching document box below. Files can be assigned here; generated and drawn signatures save directly to the customer’s Customer Signature document box.</p><div class="am-docs-file-row"><span class="am-docs-file-pill" id="amDocsFileCount">0 files selected</span><span class="am-docs-muted" style="margin:0">Preview thumbnails — filenames are shown only as small captions</span></div><div class="am-docs-tray" id="amDocsThumbTray"><span class="am-docs-muted">No documents selected yet.</span></div></section>
+    <section class="am-docs-upload-card"><div class="am-docs-title-row"><h2>Upload Documents to Software</h2></div><p class="am-docs-muted">All selected documents appear in one thumbnail row. Drag a thumbnail into its matching document box below. Files can be assigned here; generated and drawn signatures save directly to the customer’s Customer Signature document box.</p><div class="am-docs-file-row"><span class="am-docs-file-pill" id="amDocsFileCount">0 files selected</span><span class="am-docs-muted" style="margin:0">Preview thumbnails — filenames are shown only as small captions</span></div><div class="am-docs-tray" id="amDocsThumbTray"><span class="am-docs-muted">No documents selected yet.</span><label class="am-doc-add-tile" for="amDocsChooseMany" title="Add multiple files" aria-label="Add multiple files"><span>＋</span><small>Add files</small></label><input id="amDocsChooseMany" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple style="display:none"></div></section>
     <div class="am-docs-title-row"><h2>Documents for this Customer</h2><span class="am-docs-muted">Drag each thumbnail from the row above into the matching box</span></div>
     <div class="am-docs-grid">${docs.map(([key,label])=>`<section class="am-docs-box" data-doc-box="${key}"><h3>${label}</h3><div class="am-docs-dropzone" data-doc-drop="${key}">Drop document here<br>or choose file</div><input type="file" data-doc-input="${key}" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple style="display:none"><button type="button" class="btn soft" data-doc-choose="${key}" style="margin-top:8px;font-size:11px;padding:6px 9px">＋ Choose File</button><div class="am-docs-assigned-preview" data-doc-assigned="${key}"></div><div class="am-docs-status" data-doc-status="${key}">No document selected</div>${key==='signature'?`<div style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn soft" data-am-generate-name-mark style="font-size:11px;padding:6px 10px;min-height:28px" aria-label="Generate plain signature style">Generate Digitally</button><button type="button" class="btn soft" data-am-draw-sign style="font-size:11px;padding:6px 10px;min-height:28px" aria-label="Draw customer signature">Draw Sign</button></div>`:''}${key==='form34'?`<div data-form34-generated-state style="font-size:11px;margin-top:8px;color:#64748b">UI only — functionality removed</div><div style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn primary" data-am-generate-form34 style="font-size:11px;padding:6px 10px;min-height:28px">Generate Form 34</button><button type="button" class="btn soft" data-am-view-form34 style="font-size:11px;padding:6px 10px;min-height:28px" aria-label="View Form 34" title="View Form 34">👁️</button></div>`:''}</section>`).join('')}</div>
     <div class="am-docs-process"><span class="am-docs-muted" id="amDocsBottomStatus" style="margin:0">Signature saves directly to the customer record; other uploaded files are saved with Process All.</span><button type="button" class="btn primary" id="amDocsProcessAll">⇧ Process All &amp; Save</button></div>
@@ -3253,7 +3344,7 @@ body.am-documents-only #vahanPageHead h1::before{content:none!important}
    bind();refreshTray();refreshForm34SavedStatus();loadSavedCustomerDocuments().catch(e=>console.warn('[Auto Management] Could not load saved customer documents',e));return true;
  }
  function previewMarkup(f){let visual=f.type&&f.type.startsWith('image/')?`<img src="${f.url}" alt="Document preview">`:`<span class="pdf-mark">${/pdf/i.test(f.type+' '+f.name)?'PDF':'FILE'}</span>`;return `<div class="am-doc-thumb-preview">${visual}</div><div class="am-doc-thumb-name" title="${esc(f.name)}">${esc(f.name)}</div>`;}
- function refreshTray(){const tray=document.querySelector('#amDocsThumbTray');if(!tray)return;document.querySelector('#amDocsFileCount').textContent=`${files.length} file${files.length===1?'':'s'} selected`;tray.innerHTML=files.length?files.map((f,i)=>`<div class="am-doc-thumb ${Object.values(assigned).some(a=>a.includes(i))?'is-assigned':''}" draggable="true" tabindex="0" role="button" aria-label="Open document ${esc(f.name)}" data-file-index="${i}" title="Click to open and view · Drag to a document box"><button type="button" class="am-doc-remove-x" data-am-remove-file="${i}" aria-label="Remove document" title="Remove">×</button>${previewMarkup(f)}</div>`).join(''):'<span class="am-docs-muted">No documents selected yet.</span>';docs.forEach(([k])=>refreshAssigned(k));}
+ function refreshTray(){const tray=document.querySelector('#amDocsThumbTray');if(!tray)return;document.querySelector('#amDocsFileCount').textContent=`${files.length} file${files.length===1?'':'s'} selected`;tray.innerHTML=(files.length?files.map((f,i)=>`<div class="am-doc-thumb ${Object.values(assigned).some(a=>a.includes(i))?'is-assigned':''}" draggable="true" tabindex="0" role="button" aria-label="Open document ${esc(f.name)}" data-file-index="${i}" title="Click to open and view · Drag to a document box"><button type="button" class="am-doc-remove-x" data-am-remove-file="${i}" aria-label="Remove document" title="Remove">×</button>${previewMarkup(f)}</div>`).join(''):'<span class="am-docs-muted">No documents selected yet.</span>')+`<label class="am-doc-add-tile" for="amDocsChooseMany" title="Add multiple files" aria-label="Add multiple files"><span>＋</span><small>Add files</small></label>`;docs.forEach(([k])=>refreshAssigned(k));}
  function refreshAssigned(k){const area=document.querySelector(`[data-doc-assigned="${k}"]`),status=document.querySelector(`[data-doc-status="${k}"]`);if(!area||!status)return;const ids=assigned[k]||[];area.innerHTML=ids.map(i=>{const f=files[i];return f?`<div class="am-docs-assigned-chip">${f.type&&f.type.startsWith('image/')?`<img src="${f.url}" alt="">`:'<b style="color:#c44">PDF</b>'}<span title="${esc(f.name)}">${esc(f.name)}</span>${f.saved?'<span style="color:#15803d;font-weight:700">Saved</span>':''}<button type="button" class="am-doc-remove-x am-doc-remove-x-card" data-am-remove-file="${i}" aria-label="Remove document" title="Remove">×</button></div>`:''}).join('');const saved=ids.filter(i=>files[i]?.saved).length;status.textContent=ids.length?(saved?`${saved} saved document${saved===1?'':'s'}${ids.length>saved?` · ${ids.length-saved} newly assigned`:''}`:`${ids.length} document${ids.length===1?'':'s'} placed in this box`):'No document selected';}
  async function loadSavedCustomerDocuments(){const recordId=String(window.__amSavedDocsRecordId||window.__amCurrentCustomerRecordId||'');if(!recordId)return;/* Customer isolation: remove saved thumbnails/assignments from the previously viewed record before loading this record. */const keep=files.map((f,i)=>({f,i})).filter(x=>!x.f.saved);const remap=new Map();files.length=0;keep.forEach(x=>{remap.set(x.i,files.length);files.push(x.f)});Object.keys(assigned).forEach(k=>{assigned[k]=(assigned[k]||[]).filter(i=>remap.has(i)).map(i=>remap.get(i));});window.__amLoadedCustomerDocumentsRecordId=recordId;const req=indexedDB.open('AM_VAHAN_DOCUMENTS_V1',2);const db=await new Promise((resolve,reject)=>{req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files',{keyPath:'key'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Could not open local document storage'));});let rows;try{rows=await new Promise((resolve,reject)=>{const tx=db.transaction('files','readonly'),rq=tx.objectStore('files').getAll();rq.onsuccess=()=>resolve((rq.result||[]).filter(x=>x&&x.recordId!=null&&String(x.recordId)===recordId&&String(x.key||'').startsWith(recordId+':')));rq.onerror=()=>reject(rq.error||new Error('Could not read saved customer documents'));});}finally{db.close();}for(const row of rows){let kind=String(row.documentKey||'');if(kind==='customerSignature')kind='signature';if(!docs.some(([k])=>k===kind))continue;const blob=row.file instanceof Blob?row.file:new Blob([row.file||new Uint8Array()],{type:row.type||'application/octet-stream'});const exists=files.some(f=>f.saved&&f.name===row.name&&f.documentKey===kind);if(exists)continue;const f={name:row.name||'saved-document',type:row.type||blob.type||'application/octet-stream',size:row.size||blob.size,file:blob,url:URL.createObjectURL(blob),saved:true,documentKey:kind,key:String(row.key||`${recordId}:${kind==='signature'?'customerSignature':kind}`)};const index=files.push(f)-1;assigned[kind]=assigned[kind]||[];assigned[kind].push(index);}refreshTray();const invoiceCount=(assigned.invoice||[]).filter(i=>files[i]?.saved).length;const status=document.querySelector('#amDocsBottomStatus');if(status&&invoiceCount)status.textContent=`${invoiceCount} Purchase Invoice PDF(s) loaded from this customer’s local document database.`;}
  function addFiles(list){Array.from(list||[]).forEach(f=>{const url=URL.createObjectURL(f);files.push({name:f.name,type:f.type,size:f.size,file:f,url});});refreshTray();}
@@ -3288,7 +3379,7 @@ body.am-documents-only #vahanPageHead h1::before{content:none!important}
   const state=document.querySelector('[data-form34-generated-state]');
   const generate=document.querySelector('[data-am-generate-form34]');
   const view=document.querySelector('[data-am-view-form34]');
-  if(state){state.textContent='Generate Form 34 to save it here; use 👁️ to view';state.style.color='#64748b';}
+  if(state){state.textContent='';state.style.display='none';}
   if(generate){generate.textContent='Generate Form 34';generate.removeAttribute('title');}
   if(view){view.title='Preview generated Form 34';}
  }
@@ -4243,7 +4334,7 @@ input[type=checkbox],input[type=radio]{accent-color:#1769df}
    const html=await item.file.text();openForm34InDocumentViewer(html,item.name||'form34-hypothecation.html');
    }catch(err){setForm34Status(err?.message||'Could not open saved Form 34.',true);}
  }
- function setForm34Status(message,isError){const state=document.querySelector('[data-form34-generated-state]');if(state){state.textContent=message;state.style.color=isError?'#b91c1c':'#166534';}}
+ function setForm34Status(message,isError){const state=document.querySelector('[data-form34-generated-state]');if(state){state.textContent=message;state.style.display='block';state.style.color=isError?'#b91c1c':'#166534';}}
 
 
  function openUI(id){id=id||window.__amCurrentCustomerRecordId||window.__amSavedDocsRecordId||'';if(id){window.__amSavedDocsRecordId=String(id);window.__amViewingSavedDocuments=true;}document.body.classList.add('am-documents-only');if(typeof window.__amOpenPage==='function')window.__amOpenPage('VAHAN Automation');requestAnimationFrame(()=>{renderVisualOnly();requestAnimationFrame(renderVisualOnly)});}
