@@ -3609,6 +3609,103 @@ body.am-documents-only #vahanPageHead h1::before{content:none!important}
  }
 
  // Fresh Form 34 generation implementation: independent from legacy Form 34 code.
+
+ // v1.7.39: Native offline Form 34 PDF renderer. Builds PDF bytes directly; no HTML-to-PDF/print-dialog conversion.
+ async function buildForm34DirectPdf(data){
+   const W=1240,H=1754,S=2,margin=78,contentW=W-margin*2;
+   const escXml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+   const measure=document.createElement('canvas').getContext('2d');
+   const chunks=[];
+   const add=(x)=>chunks.push(x);
+   const text=(value,x,y,size=21,bold=false,anchor='start')=>{
+     add(`<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${size}" font-weight="${bold?'700':'400'}" fill="#111" text-anchor="${anchor}">${escXml(value)}</text>`);
+   };
+   const line=(x1,y1,x2,y2,color='#222',width=1.5)=>add(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}"/>`);
+   const wrap=(value,maxWidth,size=21,bold=false)=>{
+     measure.font=`${bold?'700':'400'} ${size}px Arial`;
+     const words=String(value??'').replace(/\s+/g,' ').trim().split(' ');
+     const lines=[];let current='';
+     for(const word of words){const next=current?current+' '+word:word;if(current&&measure.measureText(next).width>maxWidth){lines.push(current);current=word;}else current=next;}
+     if(current)lines.push(current);return lines;
+   };
+   let y=130;
+   text('FORM 34',W/2,y,29,true,'middle');y+=34;
+   text('[Refer Rule 60]',W/2,y,18,false,'middle');y+=36;
+   text('APPLICATION FOR MAKING AN ENTRY OF AN AGREEMENT OF HIRE PURCHASE/LEASE/HYPOTHECATION',W/2,y,21,true,'middle');y+=27;
+   text('SUBSEQUENT TO REGISTRATION',W/2,y,21,true,'middle');y+=65;
+   text('To',margin,y,21);y+=29;
+   text('The Registering Authority,',margin,y,21);y+=28;
+   for(const ln of wrap(data.office||'________________',contentW,21)){text(ln,margin,y,21);y+=28;}
+   y+=18;
+   const paragraph=(value,opts={})=>{
+     const size=opts.size||21, lh=opts.lineHeight||29, gap=opts.gap??15;
+     const lines=wrap(value,contentW,size,!!opts.bold);
+     for(const ln of lines){text(ln,margin,y,size,!!opts.bold);y+=lh;}
+     y+=gap;
+   };
+   paragraph(`The motor vehicle bearing registration number ${data.chassis||'________________'} is the subject of an agreement of Hypothecation between ${data.owner||'________________'}, the registered owner/person to be registered as owner*, and ${data.finFull||data.financerName||'________________'} (fill the name and full address of the financier having agreement number/loan account number ${data.loan||'________________'}).`,{gap:18});
+   paragraph('We request that an entry of the agreement be made in the certificate of registration and the relevant records in your office.',{gap:14});
+   paragraph(`My/Our mobile number is ${data.mobile||'________________'}.`,{gap:8});
+   paragraph('The certificate of registration together with the fee is enclosed.',{gap:16});
+   const dateY=y+10, leftX=margin, rightX=W-margin-490;
+   text('Date: '+(data.date||''),leftX,dateY+18,20);
+   const sigTop=dateY-65;
+   if(data.signature)add(`<image href="${data.signature}" x="${rightX+30}" y="${sigTop}" width="420" height="118" preserveAspectRatio="xMidYMid meet"/>`);
+   text('Signature or thumb impression of registered owner',rightX+245,dateY+20,17,false,'middle');
+   y=dateY+93;
+   text('Date: '+(data.date||''),leftX,y+15,20);
+   const stampTop=y-112;
+   if(data.stamp)add(`<image href="${data.stamp}" x="${rightX+95}" y="${stampTop}" width="250" height="160" preserveAspectRatio="xMidYMid meet"/>`);
+   text('Signature of the financier',rightX+245,y+18,17,false,'middle');
+   y+=75;
+   paragraph('* Strike out whichever is inapplicable.',{size:18,lineHeight:23,gap:18});
+   text('OFFICE ENDORSEMENT',W/2,y+5,22,true,'middle');y+=43;
+   text('Ref. Number: ...................',margin,y,19);
+   text('Office of the: ...................',W-margin,y,19,false,'end');y+=38;
+   paragraph('The entry of the agreement of hire-purchase/lease/hypothecation as requested above is recorded in this office registration record in Form 24 and certificate of registration on ................... (date).',{size:19,lineHeight:26,gap:10});
+   text('Date: ...................',margin,y+16,19);
+   text('Signature of the registering authority',W-margin-240,y+16,17,false,'middle');y+=55;
+   text('To',margin,y,19);y+=25;
+   text('The Financier, '+(data.financerName||'________________'),margin,y,19);y+=25;
+   text('The Registering Authority, '+(data.office||'________________'),margin,y,19);y+=34;
+   text('(To be sent to both the above parties by registered post acknowledgment due)',margin,y,17);y+=40;
+   line(margin,y,W-margin,y,'#999',1);y+=27;
+   text('Specimen signatures of the financier:',margin,y,19,true);y+=28;
+   const specimen='Specimen signatures of the financier are to be obtained in original application for affixing and attestation by the registering authority with official seal in Forms 23 and 24 in such a manner that part of impression of the seal or a stamp and attestation shall fall upon each signature.';
+   for(const ln of wrap(specimen,contentW,17)){text(ln,margin,y,17);y+=23;}
+   y+=28;
+   const colW=(contentW-70)/2;
+   line(margin,y+42,margin+colW,y+42,'#777',1);
+   line(margin+colW+70,y+42,W-margin,y+42,'#777',1);
+   text('1.',margin,y+67,17);text('2.',margin+colW+70,y+67,17);
+   // If unusually long local data pushes content, scale the complete page uniformly to retain one A4 page.
+   const scale=Math.min(1,(H-90)/Math.max(y+85,1));
+   const svg=`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W*S}" height="${H*S}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/><g transform="translate(0 25) scale(${scale})">${chunks.join('')}</g></svg>`;
+   const svgBlob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
+   const svgUrl=URL.createObjectURL(svgBlob);
+   try{
+     const img=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Could not render Form 34 page'));im.src=svgUrl;});
+     const canvas=document.createElement('canvas');canvas.width=W*S;canvas.height=H*S;
+     const ctx=canvas.getContext('2d');if(!ctx)throw new Error('PDF canvas is unavailable');
+     ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.drawImage(img,0,0,W*S,H*S);
+     const jpeg=canvas.toDataURL('image/jpeg',0.94).split(',')[1];
+     const binary=atob(jpeg),imageBytes=new Uint8Array(binary.length);for(let n=0;n<binary.length;n++)imageBytes[n]=binary.charCodeAt(n);
+     const enc=new TextEncoder(),parts=[],offsets=[0];let total=0;
+     const push=(v)=>{const b=typeof v==='string'?enc.encode(v):v;parts.push(b);total+=b.length;};
+     push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+     const obj=(n,body)=>{offsets[n]=total;push(`${n} 0 obj\n${body}\nendobj\n`);};
+     obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+     obj(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+     obj(3,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>');
+     offsets[4]=total;push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${W*S} /Height ${H*S} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`);push(imageBytes);push('\nendstream\nendobj\n');
+     const content='q\n595.28 0 0 841.89 0 0 cm\n/Im0 Do\nQ';
+     obj(5,`<< /Length ${enc.encode(content).length} >>\nstream\n${content}\nendstream`);
+     const xref=total;push(`xref\n0 6\n0000000000 65535 f \n`);for(let n=1;n<=5;n++)push(String(offsets[n]).padStart(10,'0')+' 00000 n \n');
+     push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+     return new Blob(parts,{type:'application/pdf'});
+   }finally{URL.revokeObjectURL(svgUrl);}
+ }
+
  async function generateForm34(previewOnly){
    const recordId=String(window.__amSavedDocsRecordId||window.__amCurrentCustomerRecordId||'');
    if(!recordId){setForm34Status('Select a customer record using Customer Details → Documents, then try again.',true);return;}
@@ -3655,9 +3752,6 @@ body.am-documents-only #vahanPageHead h1::before{content:none!important}
    const engineFinal=engine||norm(vehicleDetails.engineNo||vehicleDetails.engineNumber||vehicleMeta.engineNo||vehicleMeta.engineNumber);
    const owner=norm(record.customerName||record.ownerName);
    const finFull=[norm(financer?.name||fName),norm(financer?.address||record.branchAddress),norm(financer?.city||record.financerVillageCity),norm(financer?.state||record.financerState),norm(financer?.pincode||record.financerPincode)].filter(Boolean).join(', ');
-   let target=null;
-   if(previewOnly){target=window.open('','_blank');if(!target){setForm34Status('Browser blocked the preview window. Allow pop-ups for this app and try again.',true);return;}}
-   const stampMarkup=stamp?`<img class="financer-stamp" src="${stamp}" alt="Financer stamp">`:'';
    // Load the customer's saved uploaded/drawn/generated signature from the same local document store.
    let ownerSignatureDataUrl='';
    try{
@@ -3669,791 +3763,58 @@ body.am-documents-only #vahanPageHead h1::before{content:none!important}
      if(sigBlob){ownerSignatureDataUrl=await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(String(fr.result||''));fr.onerror=()=>reject(new Error('Could not embed customer signature'));fr.readAsDataURL(sigBlob);});}
    }catch(sigErr){console.warn('Form 34 customer signature could not be loaded:',sigErr);}
    const ownerSignatureMarkup=ownerSignatureDataUrl?`<img class="owner-signature" src="${ownerSignatureDataUrl}" alt="Registered owner's saved signature">`:'';
-   const formHtml = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Form 34 — ${e(owner)}</title><style>
-   @page{size:A4 portrait;margin:12mm 10mm 12mm}*{box-sizing:border-box}body{font:10pt Arial,sans-serif;color:#111;margin:0;line-height:1.35}.form{position:relative;width:100%;min-height:0;font-size:10pt}.form .title{font-size:14pt!important}.form .subtitle{font-size:11pt!important}.form p{margin:2.5mm 0}.title{text-align:center;font-weight:bold;font-size:14pt;margin:0}.rule{text-align:center;font-size:9pt;margin:0 0 1.5mm}.subtitle{text-align:center;font-weight:bold;font-size:12pt;margin:1.5mm 0 8mm}.to{margin:3mm 0}.body{margin-top:4mm;text-align:justify}.line{margin:4mm 0}.date-sign{display:flex;justify-content:space-between;align-items:flex-end;margin-top:5mm;gap:5mm}.sign{position:relative;width:48%;min-height:25mm;text-align:center;padding-top:17mm}.sign-label{border-top:1px solid #222;padding-top:1mm}.sign-label.no-line{border-top:0;padding-top:1mm}.owner-signature{position:absolute;max-width:72mm;max-height:22mm;width:auto;height:auto;object-fit:contain;left:50%;top:-5mm;transform:translateX(-50%);z-index:2;pointer-events:none}.financer-stamp{position:absolute;max-width:42mm;max-height:27mm;width:auto;height:auto;object-fit:contain;left:50%;top:-9mm;transform:translateX(-50%);opacity:.96;z-index:2;pointer-events:none}.financer-sign{min-height:29mm;padding-top:21mm}.foot{font-size:7.5pt;margin-top:3mm}.specimen{margin-top:5mm;border-top:1px solid #999;padding-top:2mm}.specimen p{margin:1.5mm 0}.specimen-grid{display:grid;grid-template-columns:1fr 1fr;gap:12mm;margin-top:3mm}.specimen-slot{border-bottom:1px solid #777;height:7mm}@media print{.form{page-break-inside:avoid}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-   </style><style>
-
-/* v1.6.39 — Settings professional UI, capsule actions and redesigned toggles */
-.settings-layout,.settings-layout *{box-sizing:border-box}
-.settings-layout{gap:16px!important;color:var(--text-primary,#20364d)}
-.settings-nav{border:1px solid #e0e8f1!important;border-radius:16px!important;padding:8px!important;background:#fff!important;box-shadow:0 5px 18px rgba(22,48,78,.045)!important}
-.settings-nav button{display:block;width:100%;min-height:38px;margin:3px 0;padding:10px 15px!important;border:1px solid transparent!important;border-radius:999px!important;background:transparent;color:#4a627b;font-weight:650;text-align:left;transition:background .16s ease,color .16s ease,box-shadow .16s ease}
-.settings-nav button:hover{background:#f1f6fc!important;color:#174b7b}
-.settings-nav button.active{background:#174b7b!important;color:#fff!important;border-color:#174b7b!important;box-shadow:0 3px 9px rgba(23,75,123,.15)}
-.setting-section{border:1px solid #e0e8f1!important;border-radius:16px!important;padding:20px!important;background:#fff!important;box-shadow:0 5px 18px rgba(22,48,78,.045)!important}
-.setting-section h2,.setting-section h3{color:#1d3d5c;letter-spacing:-.25px}
-.setting-section button,.setting-section [role="button"],.setting-section input[type="button"],.setting-section input[type="submit"],.setting-section input[type="reset"],.setting-section a.btn,.setting-section .btn,.setting-section .button,.settings-layout button:not(.toggle){
- border-radius:999px!important;min-height:36px;padding:8px 15px;font-weight:650;transition:background-color .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease
-}
-.setting-section button:hover:not(:disabled),.settings-layout button:not(.toggle):hover:not(:disabled){transform:translateY(-1px)}
-.setting-section input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),.setting-section select,.setting-section textarea{border-radius:11px!important;border:1px solid #d5dfeb;transition:border-color .16s ease,box-shadow .16s ease}
-.setting-section input:focus,.setting-section select:focus,.setting-section textarea:focus{outline:none;border-color:#4f8ac7;box-shadow:0 0 0 3px rgba(55,125,192,.13)}
-.setting-section label{color:#425b74;font-weight:600}
-.setting-section input[type="checkbox"],.setting-section input[type="radio"]{accent-color:#174b7b}
-.settings-layout .toggle{
- position:relative;display:inline-block;width:46px!important;height:26px!important;min-width:46px;padding:0!important;
- border:1px solid #c7d2df!important;border-radius:999px!important;background:#dce4ed!important;box-shadow:inset 0 1px 2px rgba(20,40,60,.08);
- vertical-align:middle;cursor:pointer;transition:background .18s ease,border-color .18s ease
-}
-.settings-layout .toggle:after{
- content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;
- box-shadow:0 1px 4px rgba(15,35,55,.22);transition:left .18s ease,transform .18s ease
-}
-.settings-layout .toggle.on{background:#1769aa!important;border-color:#1769aa!important}
-.settings-layout .toggle.on:after{left:23px!important}
-.settings-layout .toggle:focus-visible{outline:3px solid rgba(55,125,192,.25);outline-offset:2px}
-.settings-layout .toggle:disabled{opacity:.5;cursor:not-allowed}
-@media(max-width:760px){
- .settings-layout{grid-template-columns:1fr!important;gap:12px!important}
- .settings-nav{display:flex;overflow-x:auto;gap:5px;white-space:nowrap;border-radius:13px!important}
- .settings-nav button{width:auto;min-width:max-content;margin:0;text-align:center}
- .setting-section{padding:15px!important;border-radius:13px!important}
-}
-
-</style>
-<style>
-
-/* v1.6.40 — normalize all switch/toggle controls to a clear capsule shape */
-:root{--am-switch-off:#d5dee8;--am-switch-on:#1769aa;--am-switch-knob:#fff}
-.toggle,.switch,.switch-toggle,.toggle-switch,[role="switch"],[data-toggle],.form-switch .form-check-input{
- position:relative!important;display:inline-block!important;box-sizing:border-box!important;
- width:46px!important;min-width:46px!important;height:26px!important;min-height:26px!important;
- padding:0!important;margin:0 7px 0 0!important;border:1px solid var(--am-switch-off)!important;
- border-radius:999px!important;background:var(--am-switch-off)!important;
- vertical-align:middle!important;box-shadow:inset 0 1px 2px rgba(20,40,60,.10)!important;
- cursor:pointer!important;transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease!important;
-}
-.toggle:after,.switch:after,.switch-toggle:after,.toggle-switch:after,[role="switch"]:after,[data-toggle]:after{
- content:""!important;position:absolute!important;left:3px!important;top:3px!important;
- width:18px!important;height:18px!important;border:0!important;border-radius:50%!important;
- background:var(--am-switch-knob)!important;box-shadow:0 1px 4px rgba(15,35,55,.24)!important;
- transform:none!important;transition:left .18s ease!important;
-}
-.toggle.on,.switch.on,.switch-toggle.on,.toggle-switch.on,[role="switch"][aria-checked="true"],[data-toggle="on"],.form-switch .form-check-input:checked{
- background:var(--am-switch-on)!important;border-color:var(--am-switch-on)!important;
-}
-.toggle.on:after,.switch.on:after,.switch-toggle.on:after,.toggle-switch.on:after,[role="switch"][aria-checked="true"]:after,[data-toggle="on"]:after{
- left:23px!important;transform:none!important;
-}
-.form-switch .form-check-input{appearance:none!important;-webkit-appearance:none!important}
-.form-switch .form-check-input:checked{background-image:none!important}
-.toggle:focus-visible,.switch:focus-visible,.switch-toggle:focus-visible,.toggle-switch:focus-visible,[role="switch"]:focus-visible{
- outline:3px solid rgba(55,125,192,.25)!important;outline-offset:2px!important
-}
-.toggle:disabled,.switch:disabled,.switch-toggle:disabled,.toggle-switch:disabled{opacity:.5!important;cursor:not-allowed!important}
-@media(max-width:700px){
- .toggle,.switch,.switch-toggle,.toggle-switch,[role="switch"],[data-toggle],.form-switch .form-check-input{
- width:46px!important;min-width:46px!important;height:26px!important;min-height:26px!important
- }
-}
-
-</style>
-<style>
-
-/* v1.6.41 — actual runtime toggle selector override */
-button.toggle, span.toggle, .setting-row .toggle, .setting-section .toggle,
-.settings-layout .toggle, [role="switch"], .switch, .switch-toggle, .toggle-switch {
-  box-sizing:border-box!important; width:46px!important; min-width:46px!important;
-  height:26px!important; min-height:26px!important; padding:0!important;
-  border:1px solid #cbd5e1!important; border-radius:999px!important;
-  background:#dbe3ec!important; position:relative!important; overflow:visible!important;
-  box-shadow:inset 0 1px 2px rgba(20,40,60,.10)!important;
-}
-button.toggle::after, span.toggle::after, .setting-row .toggle::after,
-.setting-section .toggle::after, .settings-layout .toggle::after,
-[role="switch"]::after, .switch::after, .switch-toggle::after, .toggle-switch::after {
-  content:""!important; position:absolute!important; display:block!important;
-  width:18px!important; height:18px!important; left:3px!important; top:3px!important;
-  right:auto!important; bottom:auto!important; margin:0!important; padding:0!important;
-  border:0!important; border-radius:50%!important; background:#fff!important;
-  box-shadow:0 1px 4px rgba(15,35,55,.24)!important;
-  transform:none!important; opacity:1!important; transition:left .18s ease!important;
-}
-button.toggle.on, span.toggle.on, .setting-row .toggle.on, .setting-section .toggle.on,
-.settings-layout .toggle.on, [role="switch"][aria-checked="true"], .switch.on, .switch-toggle.on, .toggle-switch.on {
-  background:#1769aa!important;border-color:#1769aa!important;
-}
-button.toggle.on::after, span.toggle.on::after, .setting-row .toggle.on::after,
-.setting-section .toggle.on::after, .settings-layout .toggle.on::after,
-[role="switch"][aria-checked="true"]::after, .switch.on::after, .switch-toggle.on::after, .toggle-switch.on::after {
-  left:23px!important;right:auto!important;transform:none!important;
-}
-
-</style>
-<style>
-
-/* v1.6.43 — Import / Insurance PDFs flat professional UI; explicitly no shadows */
-.am-ic-wrap{
-  border:1px solid #e1eaf3!important;border-radius:18px!important;
-  background:#fff!important;box-shadow:none!important;padding:22px!important;
-}
-.am-ic-wrap .am-ic-head h1{color:#142b45!important;font-size:28px!important;letter-spacing:-.5px}
-.am-ic-wrap .am-ic-head p{color:#647b96!important;font-size:14px!important;line-height:1.55}
-.am-ic-wrap .am-ic-tabs{
-  display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:10px!important;
-  border-bottom:2px solid #e1eaf3!important;padding:8px 0 12px!important;margin:0 0 18px!important;
-}
-.am-ic-wrap .am-ic-tab{
-  display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  min-height:44px!important;padding:10px 22px!important;border:1px solid transparent!important;
-  border-radius:999px!important;background:#f0f4f8!important;color:#536b86!important;
-  font-size:14px!important;font-weight:700!important;line-height:1.3!important;
-  box-shadow:none!important;text-decoration:none!important;transform:none!important;
-  transition:background-color .15s ease,color .15s ease,border-color .15s ease!important;
-}
-.am-ic-wrap .am-ic-tab:hover:not(.active){
-  background:#e7eef6!important;color:#25496f!important;border-color:#e0e9f3!important;
-  box-shadow:none!important;transform:none!important;
-}
-.am-ic-wrap .am-ic-tab.active{
-  background:#1769df!important;color:#fff!important;border-color:#1769df!important;
-  box-shadow:none!important;border-bottom-color:#1769df!important;
-}
-.am-ic-wrap .am-ic-drop{
-  min-height:270px!important;margin:0 0 18px!important;padding:34px 24px!important;
-  border:2px dashed #c9d9ec!important;border-radius:16px!important;
-  background:#fff!important;box-shadow:none!important;
-  display:flex!important;align-items:center!important;justify-content:center!important;
-  transition:background-color .15s ease,border-color .15s ease!important;
-}
-.am-ic-wrap .am-ic-drop:hover,.am-ic-wrap .am-ic-drop.drag{
-  border-color:#6aa1e8!important;background:#f8fbff!important;box-shadow:none!important;
-}
-.am-ic-wrap .am-ic-drop h3{color:#152e4a!important;font-size:20px!important;font-weight:750!important;margin:14px 0 8px!important}
-.am-ic-wrap .am-ic-drop p{max-width:680px!important;color:#7187a2!important;font-size:14px!important;line-height:1.65!important;margin:0 auto 18px!important}
-.am-ic-wrap .am-ic-cloud{
-  display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  width:64px!important;height:64px!important;border-radius:14px!important;
-  background:#eaf3ff!important;color:#1769df!important;font-size:30px!important;
-  box-shadow:none!important;
-}
-.am-ic-wrap #amIcChooseInsurance,.am-ic-wrap #amIcChoosePdf,.am-ic-wrap .am-ic-drop .btn{
-  min-height:48px!important;padding:12px 24px!important;border:1px solid #1769df!important;
-  border-radius:999px!important;background:#1769df!important;color:#fff!important;
-  font-size:14px!important;font-weight:750!important;box-shadow:none!important;
-  transform:none!important;transition:background-color .15s ease,border-color .15s ease!important;
-}
-.am-ic-wrap #amIcChooseInsurance:hover,.am-ic-wrap #amIcChoosePdf:hover,.am-ic-wrap .am-ic-drop .btn:hover{
-  background:#0f58c4!important;border-color:#0f58c4!important;box-shadow:none!important;transform:none!important;
-}
-.am-ic-wrap .am-ic-status{
-  padding:12px 2px!important;border:0!important;border-radius:0!important;
-  background:transparent!important;color:#687f99!important;box-shadow:none!important;
-}
-.am-ic-wrap .am-ic-card,.am-ic-wrap .am-ic-feedback,.am-ic-wrap .am-ic-results{
-  box-shadow:none!important;
-}
-.am-ic-wrap button:hover,.am-ic-wrap .btn:hover,.am-ic-wrap [role="button"]:hover{
-  box-shadow:none!important;
-}
-@media(max-width:700px){
- .am-ic-wrap{padding:14px!important;border-radius:14px!important}
- .am-ic-wrap .am-ic-head{display:block!important}
- .am-ic-wrap .am-ic-head h1{font-size:24px!important}
- .am-ic-wrap .am-ic-tabs{gap:7px!important}
- .am-ic-wrap .am-ic-tab{min-height:40px!important;padding:9px 13px!important;font-size:12px!important}
- .am-ic-wrap .am-ic-drop{min-height:230px!important;padding:24px 14px!important}
- .am-ic-wrap .am-ic-drop h3{font-size:17px!important}
- .am-ic-wrap .am-ic-drop p{font-size:13px!important}
-}
-
-</style>
-<style id="am-global-flat-ui-v1645">
-
-/* v1.6.45 — Global flat UI system: consistent surfaces, capsules, no shadows */
-:root{
- --am-flat-ink:#142b45;--am-flat-muted:#647b95;--am-flat-line:#dce6f0;
- --am-flat-page:#f4f7fb;--am-flat-surface:#fff;--am-flat-blue:#1769df;
- --am-flat-blue-hover:#1059c5;--am-flat-soft:#eef3f8;
- --am-flat-radius:14px;--am-flat-control-radius:999px;
-}
-html,body{background:#f4f7fb!important;color:var(--am-flat-ink)}
-button,a,input,select,textarea{font-family:inherit}
-button,.btn,.button,.primary-btn,.secondary-btn,.action-btn,
-[role="button"],input[type="button"],input[type="submit"],input[type="reset"],
-a.button,a.btn,.toolbar button,.modal button,.dialog button{
- box-shadow:none!important;text-shadow:none!important;
- transition:background-color .15s ease,border-color .15s ease,color .15s ease,opacity .15s ease!important;
-}
-button:not([role="switch"]):not(.toggle):not(.switch):not(.switch-toggle):not(.toggle-switch),
-.btn,.button,.primary-btn,.secondary-btn,.action-btn,[role="button"],
-input[type="button"],input[type="submit"],input[type="reset"],a.button,a.btn{
- border-radius:999px!important;
-}
-button:hover:not(:disabled),.btn:hover:not(:disabled),.button:hover:not(:disabled),
-.primary-btn:hover:not(:disabled),.secondary-btn:hover:not(:disabled),
-.action-btn:hover:not(:disabled),[role="button"]:hover,
-input[type="button"]:hover:not(:disabled),input[type="submit"]:hover:not(:disabled),
-input[type="reset"]:hover:not(:disabled),a.button:hover,a.btn:hover{
- box-shadow:none!important;filter:none!important;transform:none!important;
-}
-button:focus-visible,.btn:focus-visible,.button:focus-visible,[role="button"]:focus-visible,
-input:focus-visible,select:focus-visible,textarea:focus-visible{
- outline:2px solid #8ab8ef!important;outline-offset:2px!important;
-}
-input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]),
-select,textarea,.text-field,.form-input,.form-control{
- border-radius:10px!important;box-shadow:none!important;
-}
-input:not([type=checkbox]):not([type=radio]):not([type=file]):focus,
-select:focus,textarea:focus,.text-field:focus,.form-input:focus,.form-control:focus{
- border-color:#7aa9e2!important;box-shadow:0 0 0 2px rgba(23,105,223,.10)!important;outline:none!important;
-}
-.card,.module-card,.setting-section,.settings-card,.setting-card,.settings-panel,
-.panel,.modal-content,.dialog-content,.content-card,.stat-card,.summary-card,
-.import-card,.record-card,.form-card,.table-card{
- box-shadow:none!important;
-}
-.card,.module-card,.setting-section,.settings-card,.setting-card,.settings-panel,
-.panel,.modal-content,.dialog-content,.content-card,.stat-card,.summary-card,
-.import-card,.record-card,.form-card,.table-card{
- border-color:var(--am-flat-line)!important;border-radius:var(--am-flat-radius)!important;
-}
-table{border-color:var(--am-flat-line)}
-th{background:#f0f4f8!important;color:#435d78!important;box-shadow:none!important}
-td,th{border-color:#e3eaf2!important}
-.tabs,.tab-bar,.nav-tabs,.section-tabs,.sub-tabs,.settings-tabs{
- box-shadow:none!important;border-color:var(--am-flat-line)!important;
-}
-.tabs button,.tab-bar button,.nav-tabs button,.section-tabs button,.sub-tabs button,
-.settings-tabs button,.tab-button,.module-tab{
- border-radius:999px!important;box-shadow:none!important;transform:none!important;
-}
-.tabs button:hover,.tab-bar button:hover,.nav-tabs button:hover,.section-tabs button:hover,
-.sub-tabs button:hover,.settings-tabs button:hover,.tab-button:hover,.module-tab:hover{
- box-shadow:none!important;transform:none!important;
-}
-.sidebar{box-shadow:none!important}
-.nav-item{border-radius:10px!important;box-shadow:none!important;transition:background-color .15s ease,color .15s ease!important}
-.nav-item.active{box-shadow:none!important;background:#1769df!important}
-.nav-item:hover{box-shadow:none!important}
-.topbar,.app-header,.page-header,.toolbar,.panel-header{
- box-shadow:none!important;border-color:var(--am-flat-line)!important;
-}
-.badge,.chip,.tag,.status-badge{box-shadow:none!important}
-hr,.divider{border-color:var(--am-flat-line)!important}
-input[type=file]::file-selector-button{
- border:1px solid #1769df!important;border-radius:999px!important;background:#1769df!important;
- color:#fff!important;padding:8px 14px!important;font-weight:650!important;box-shadow:none!important;
-}
-input[type=file]::-webkit-file-upload-button{
- border:1px solid #1769df!important;border-radius:999px!important;background:#1769df!important;
- color:#fff!important;padding:8px 14px!important;font-weight:650!important;box-shadow:none!important;
-}
-input[type=checkbox],input[type=radio]{accent-color:#1769df}
-.toggle,.switch,.switch-toggle,.toggle-switch,[role=switch],.form-switch .form-check-input{
- box-shadow:none!important;border-radius:999px!important;
-}
-.toggle:after,.switch:after,.switch-toggle:after,.toggle-switch:after,[role=switch]:after{
- box-shadow:none!important;border-radius:999px!important;
-}
-/* Keep the approved flat Import / Insurance styling intact; no decorative shadows anywhere. */
-.am-ic-wrap,.am-ic-wrap *{box-shadow:none!important;text-shadow:none!important}
-.am-ic-wrap .am-ic-tab,.am-ic-wrap .am-ic-drop,.am-ic-wrap .am-ic-cloud,
-.am-ic-wrap #amIcChooseInsurance,.am-ic-wrap #amIcChoosePdf{box-shadow:none!important}
-@media(max-width:760px){
- .card,.module-card,.setting-section,.settings-card,.settings-panel,.panel,
- .modal-content,.dialog-content,.content-card,.stat-card,.summary-card{
-  border-radius:12px!important;box-shadow:none!important;
- }
- button,.btn,.button,.primary-btn,.secondary-btn,.action-btn,
- input[type=button],input[type=submit],input[type=reset]{min-height:36px}
-}
-
-</style>
-
-<style id="amGlobalImportCompactProV1659">
-/* v1.6.59: consistent compact, professional file-picker UI across every Import module */
-#amIcRoot .am-ic-wrap .am-ic-drop,
-.am-ic-wrap .am-ic-drop{min-height:0!important;height:auto!important;padding:12px 14px!important;margin:0 0 10px!important;border:1px dashed #c8d5e5!important;border-radius:10px!important;background:#fbfdff!important;box-shadow:none!important;}
-.am-ic-wrap .am-ic-drop>div{width:100%!important;display:flex!important;flex-direction:column!important;align-items:center!important;gap:0!important}
-.am-ic-wrap .am-ic-cloud{width:28px!important;height:28px!important;min-width:28px!important;font-size:17px!important;margin:0 0 4px!important;border-radius:8px!important}
-.am-ic-wrap .am-ic-drop h3{font-size:14px!important;line-height:1.3!important;margin:2px 0 4px!important;font-weight:700!important}
-.am-ic-wrap .am-ic-drop p{max-width:520px!important;font-size:11px!important;line-height:1.35!important;margin:0 auto 7px!important}
-.am-ic-wrap .am-ic-drop .btn,.am-ic-wrap #amIcChoosePdf,.am-ic-wrap #amIcChooseInsurance,.am-ic-wrap #amIcChooseExcel,
-#amExcelChoose,#hero-connect-ui .hcu-btn,#hero-connect-ui button,
-#amIcRoot button[id*="Choose"],#amIcRoot button[class*="choose"]{min-height:32px!important;height:auto!important;padding:7px 11px!important;border-radius:8px!important;font-size:12px!important;line-height:1.2!important;box-shadow:none!important;font-weight:650!important}
-#amIcExcel .am-ic-excel-workspace{padding:12px!important;gap:10px!important;border-radius:12px!important}
-#amExcelDrop{padding:10px 12px!important;min-height:0!important;gap:8px!important;border-radius:9px!important;background:#fbfdff!important}
-#amExcelDrop strong{font-size:13px!important}
-#amExcelDrop #amExcelFileInfo{font-size:11px!important;margin-top:3px!important}
-#amExcelMapping{padding:10px!important;border-radius:9px!important}
-#amExcelMappingGrid{gap:9px!important}
-#amExcelMappingGrid .am-excel-field{gap:4px!important;font-size:12px!important}
-#amExcelMappingGrid select{min-height:34px!important;padding:7px 9px!important;border-radius:8px!important;font-size:12px!important}
-#amExcelPreviewWrap{max-width:100%!important;overflow-x:auto!important;border-radius:9px!important}
-#amExcelPreviewTable th,#amExcelPreviewTable td{padding:7px 9px!important;font-size:12px!important}
-#hero-connect-ui .hcu-grid{gap:10px!important}
-#hero-connect-ui .hcu-upload{padding:12px!important;border:1px solid #dbe4ef!important;border-radius:10px!important;background:#fff!important;box-shadow:none!important}
-#hero-connect-ui .hcu-upload h2{font-size:13px!important;margin:0 0 4px!important}
-#hero-connect-ui .hcu-muted{font-size:11px!important;line-height:1.4!important}
-#hero-connect-ui .hcu-file{margin-top:8px!important;padding:7px!important;border:1px dashed #c7d4e3!important;border-radius:8px!important;background:#fbfdff!important;font-size:11px!important}
-#hero-connect-ui input[type=file]::file-selector-button{margin:0 8px 0 0!important;padding:6px 9px!important;border-radius:7px!important;font-size:11px!important;font-weight:650!important}
-#hero-connect-ui .hcu-actions{gap:8px!important;margin-top:10px!important}
-#hero-connect-ui .hcu-btn{padding:7px 11px!important;border-radius:8px!important;font-size:12px!important}
-.am-ic-wrap .am-ic-status{padding:9px 2px!important;margin-bottom:10px!important;font-size:12px!important}
-@media(max-width:700px){
- .am-ic-wrap .am-ic-drop{padding:10px!important;margin-bottom:8px!important}
- .am-ic-wrap .am-ic-drop p{font-size:10.5px!important}
- #amExcelDrop{display:flex!important;flex-direction:column!important;align-items:stretch!important}
- #amExcelDrop>div{width:100%!important;min-width:0!important}
- #amExcelChoose{width:auto!important;align-self:flex-start!important}
- #amExcelMappingGrid{grid-template-columns:minmax(0,1fr)!important}
- #hero-connect-ui .hcu-grid{grid-template-columns:minmax(0,1fr)!important}
- #hero-connect-ui .hcu-upload{padding:10px!important}
- #hero-connect-ui .hcu-file{width:100%!important;max-width:100%!important}
-}
-</style>
-
-</head><body><main class="form"><h1 class="title">FORM 34</h1><div class="rule">[Refer Rule 60]</div><div class="subtitle">APPLICATION FOR MAKING AN ENTRY OF AN AGREEMENT OF HIRE PURCHASE/LEASE/HYPOTHECATION<br>SUBSEQUENT TO REGISTRATION</div><p>To</p><p>The Registering Authority,<br>${e(record.assignedOffice||record.district||'________________')}</p><div class="body">The motor vehicle bearing registration number <b>${e(chassisFinal||'________________')}</b> is the subject of an agreement of Hypothecation between <b>${e(owner||'________________')}</b>, the registered owner/person to be registered as owner*, and <b>${e(finFull||fName||'________________')}</b> (fill the name and full address of the financier having agreement number/loan account number <b>${e(record.loanAccountNo||record.loanAccountNumber||'________________')}</b>).</div><p class="line">We request that an entry of the agreement be made in the certificate of registration and the relevant records in your office.</p><p>My/Our mobile number is <b>${e(record.mobile||'________________')}</b>.</p><p>The certificate of registration together with the fee is enclosed.</p><div class="date-sign"><div style="width:48%">Date: ${e(date)}</div><div class="sign">${ownerSignatureMarkup}<div class="sign-label no-line">Signature or thumb impression of registered owner</div></div></div><div class="date-sign" style="margin-top:7mm"><div style="width:48%">Date: ${e(date)}</div><div class="sign financer-sign">${stampMarkup}<div class="sign-label no-line">Signature of the financier</div></div></div><p style="margin-top:7mm">* Strike out whichever is inapplicable.</p><h3 style="text-align:center;margin-top:13mm">OFFICE ENDORSEMENT</h3><p>Ref. Number: ................... <span style="float:right">Office of the: ...................</span></p><p>The entry of the agreement of hire-purchase/lease/hypothecation as requested above is recorded in this office registration record in Form 24 and certificate of registration on ................... (date).</p><div class="date-sign"><div style="width:48%">Date: ...................</div><div class="sign"><div class="sign-label">Signature of the registering authority</div></div></div><p style="margin-top:8mm">To<br>The Financier, ${e(financer?.name||fName||'________________')}<br>The Registering Authority, ${e(record.assignedOffice||record.district||'________________')}</p><p style="font-size:9pt">(To be sent to both the above parties by registered post acknowledgment due)</p><section class="specimen"><b>Specimen signatures of the financier:</b><p>Specimen signatures of the financier are to be obtained in original application for affixing and attestation by the registering authority with official seal in Forms 23 and 24 in such a manner that part of impression of the seal or a stamp and attestation shall fall upon each signature.</p><div class="specimen-grid"><div><div class="specimen-slot"></div>1.</div><div><div class="specimen-slot"></div>2.</div></div></section></main><script id="am-district-alpha-only-v1615">
-(function(){
-  const districtIds = new Set(['district','vf_district','financerDistrict','vf_financerDistrict']);
-  function cleanDistrict(el){
-    if(!el || !districtIds.has(el.id)) return;
-    const start = el.selectionStart, end = el.selectionEnd;
-    const old = el.value;
-    const clean = old.replace(/[^A-Za-z\s.'-]/g, '').replace(/\s{2,}/g, ' ');
-    if(old !== clean){ el.value = clean; try { const pos = Math.min(clean.length, start ?? clean.length); el.setSelectionRange(pos, Math.min(clean.length, end ?? clean.length)); } catch(_) {} }
-  }
-  document.addEventListener('input', function(e){ cleanDistrict(e.target); }, true);
-  document.addEventListener('change', function(e){ cleanDistrict(e.target); }, true);
-  document.addEventListener('blur', function(e){ cleanDistrict(e.target); }, true);
-})();
-<\/script>
-
-<style id="am-v169-fullscreen-brand-login">
-/* Full viewport login, matching the original app's navy / sky blue / soft gray palette. */
-#am-auth-gate{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-height:100vh!important;max-width:none!important;max-height:none!important;padding:0!important;margin:0!important;overflow:hidden!important;background:#eef4fa!important;display:block!important}
-#am-auth-gate .am-auth-shell{width:100%!important;height:100%!important;min-height:100%!important;max-width:none!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#f8fbfe!important}
-#am-auth-gate .am-auth-brand{background:linear-gradient(145deg,#071b31 0%,#0c3155 52%,#1169b9 100%)!important;padding:clamp(28px,4vw,68px)!important;min-width:0!important}
-#am-auth-gate .am-auth-brand-mark{width:62px!important;height:62px!important;padding:9px!important;border-radius:15px!important;background:rgba(255,255,255,.10)!important;border:1px solid rgba(255,255,255,.22)!important;margin-bottom:14px!important}
-#am-auth-gate .am-auth-brand-mark img{width:100%;height:100%;display:block;object-fit:contain}
-#am-auth-gate .am-auth-brand-name{font-size:clamp(17px,1.7vw,24px)!important;color:#fff!important}
-#am-auth-gate .am-auth-brand-name span{color:#63c9ff!important}
-#am-auth-gate .am-auth-brand h1{font-size:clamp(30px,3.8vw,56px)!important;margin:clamp(42px,9vh,130px) 0 22px!important;line-height:1.16!important;letter-spacing:-1.2px!important}
-#am-auth-gate .am-auth-brand p{font-size:clamp(13px,1.1vw,16px)!important;max-width:520px!important;color:#d1e5f6!important}
-#am-auth-gate .am-auth-brand-foot{color:#a8d5f4!important}
-#am-auth-gate .am-auth-main{background:linear-gradient(135deg,#f5f9fd,#eaf2fa)!important;padding:clamp(24px,5vw,76px)!important;min-width:0!important}
-#am-auth-gate .am-auth-card{max-width:430px!important;width:100%!important;background:#fff!important;border:1px solid #e0e9f2!important;border-radius:16px!important;padding:clamp(25px,3vw,44px)!important;box-shadow:0 14px 42px rgba(17,51,86,.08)!important}
-#am-auth-gate .am-auth-eyebrow{color:#0878ee!important}
-#am-auth-gate .am-auth-card form>button{background:linear-gradient(180deg,#1684ef,#0869d5)!important;box-shadow:0 5px 13px rgba(8,120,238,.20)!important}
-#am-auth-gate .am-auth-card form>button:hover{background:#0868cb!important}
-#am-auth-gate .am-auth-link{color:#086fd7!important}
-#am-auth-gate input{background:#f9fcff!important;border-color:#d7e4f0!important}
-@media(max-width:700px){
- #am-auth-gate{overflow:auto!important}
- #am-auth-gate .am-auth-shell{grid-template-columns:1fr!important;grid-template-rows:auto 1fr!important;min-height:100dvh!important;height:auto!important}
- #am-auth-gate .am-auth-brand{padding:22px 24px!important}
- #am-auth-gate .am-auth-brand-mark{width:46px!important;height:46px!important;padding:6px!important;margin-bottom:8px!important}
- #am-auth-gate .am-auth-brand h1{font-size:25px!important;margin:16px 0 8px!important}
- #am-auth-gate .am-auth-brand p{font-size:12px!important;line-height:1.5!important}
- #am-auth-gate .am-auth-main{padding:22px 15px 30px!important;align-items:start!important}
- #am-auth-gate .am-auth-card{padding:25px 22px!important;max-width:450px!important}
-}
-</style>
-
-
-
-
-
-<style id="am-v1691-document-section-professional-polish">
-/* Document workspace: restrained, rectangular previews and consistent document cards. */
-.am-documents-only #page-content{max-width:1440px;margin:0 auto;padding:18px 20px 30px}
-.am-documents-only .am-documents-only .page-head{margin-bottom:16px}
-.am-documents-only .am-docs-ui-only{display:block!important;width:100%;color:#243b53}
-.am-documents-only .am-docs-ui-only .am-docs-upload-card{
-  position:relative;top:auto;z-index:2;background:#fff;border:1px solid #dce5ef;
-  border-radius:12px;padding:18px;margin:0 0 22px;box-shadow:0 3px 12px rgba(24,50,78,.045)
-}
-.am-documents-only .am-docs-title-row{align-items:center;gap:10px;margin:0 0 12px}
-.am-documents-only .am-docs-title-row h2{font-size:16px;font-weight:700;letter-spacing:-.15px;color:#20364e}
-.am-documents-only .am-docs-muted{font-size:12px;line-height:1.55;color:#718198}
-.am-documents-only .am-docs-upload-card>p{max-width:900px;margin:0 0 12px;font-size:12px;line-height:1.55;color:#718198}
-.am-documents-only .am-docs-file-row{margin:12px 0 4px;align-items:center}
-.am-documents-only .am-docs-file-pill{border-radius:7px;background:#f3f7fb;border:1px solid #dfe7ef;color:#405a74;padding:7px 10px;font-weight:600}
-.am-documents-only .am-docs-ui-only .am-docs-tray{
-  display:flex;align-items:stretch;gap:12px;min-height:0;max-height:190px;
-  padding:12px 2px 8px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;
-  border-top:1px solid #edf1f5;margin-top:8px
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb{
-  flex:0 0 116px;width:116px;min-height:146px;padding:8px;
-  display:flex;flex-direction:column;justify-content:flex-start;gap:0;
-  border:1px solid #dce5ee!important;border-radius:10px!important;
-  background:#fff!important;box-shadow:0 1px 3px rgba(20,45,70,.04);
-  text-align:left;cursor:grab;opacity:1;transition:border-color .15s,box-shadow .15s,transform .15s
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb:hover{
-  border-color:#9bbce0!important;box-shadow:0 4px 12px rgba(31,89,145,.10);transform:translateY(-1px)
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb.is-assigned{
-  border-color:#a8cdb5!important;background:#f7fcf8!important;opacity:1
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-preview{
-  width:100%;height:104px;flex:0 0 104px;margin:0 0 8px;
-  display:flex;align-items:center;justify-content:center;overflow:hidden;
-  border:1px solid #e6ebf1;border-radius:7px!important;background:#f6f8fb!important
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-preview img{
-  display:block;width:100%;height:100%;object-fit:contain!important;border-radius:0!important;background:#fff
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-preview .pdf-mark{
-  display:flex;align-items:center;justify-content:center;position:relative;
-  width:52px;height:64px;border:1px solid #e3a5a5;border-radius:5px;
-  background:linear-gradient(180deg,#fff 0%,#fff7f7 100%);
-  color:#c84b4b;font-size:12px;font-weight:800;letter-spacing:.5px
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-preview .pdf-mark:before{
-  content:"";position:absolute;top:-1px;right:-1px;width:13px;height:13px;
-  background:linear-gradient(225deg,#f6f8fb 49%,#e9b8b8 50%);border-left:1px solid #e3a5a5;border-bottom:1px solid #e3a5a5
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-name{
-  width:100%;font-size:10px;line-height:1.35;font-weight:600;color:#52677e;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center
-}
-.am-documents-only .am-docs-title-row:has(+ .am-docs-grid){margin:4px 0 12px;padding:0 1px}
-.am-documents-only .am-docs-ui-only .am-docs-grid{
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch
-}
-.am-documents-only .am-docs-ui-only .am-docs-box{
-  min-width:0;padding:14px;border:1px solid #dfe7ef;border-radius:10px;
-  background:#fff;box-shadow:0 2px 8px rgba(24,50,78,.035);transition:border-color .15s,box-shadow .15s
-}
-.am-documents-only .am-docs-ui-only .am-docs-box:hover{border-color:#c7d7e7;box-shadow:0 4px 12px rgba(24,50,78,.06)}
-.am-documents-only .am-docs-ui-only .am-docs-box h3{
-  display:flex;align-items:center;min-height:38px;margin:0 0 10px;
-  color:#263f59;font-size:13px;line-height:1.4;font-weight:700
-}
-.am-documents-only .am-docs-ui-only .am-docs-box .am-docs-dropzone{
-  min-height:76px;padding:12px;border:1px dashed #c5d3e1;border-radius:8px;
-  background:#f8fafc;color:#718198;font-size:11px;line-height:1.5
-}
-.am-documents-only .am-docs-ui-only .am-docs-box .am-docs-dropzone.drag-over{
-  border-color:#3185d7;background:#f0f7ff;color:#245f99
-}
-.am-documents-only .am-docs-ui-only .am-docs-box>[data-doc-choose]{
-  min-height:30px;border-radius:6px;padding:6px 10px!important;font-size:11px!important
-}
-.am-documents-only .am-docs-ui-only .am-docs-assigned-preview{gap:6px;margin-top:9px}
-.am-documents-only .am-docs-ui-only .am-docs-assigned-chip{
-  max-width:100%;padding:5px 7px;border-radius:6px;background:#f7fafc;
-  border-color:#e1e8ef;font-size:10px
-}
-.am-documents-only .am-docs-ui-only .am-docs-status{
-  min-height:16px;margin-top:8px;font-size:10px;line-height:1.4;color:#7a8b9d
-}
-.am-documents-only .am-docs-ui-only .am-docs-process{
-  margin:18px 0 0;padding:13px 15px;border:1px solid #dce5ef;
-  border-radius:10px;background:#f8fafc
-}
-.am-documents-only .am-docs-ui-only .am-docs-process .btn{min-height:36px;border-radius:7px;padding:8px 14px}
-@media(max-width:900px){
-  .am-documents-only .am-docs-ui-only .am-docs-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-@media(max-width:560px){
-  .am-documents-only #page-content{padding:12px 10px 22px}
-  .am-documents-only .am-docs-ui-only .am-docs-upload-card{padding:12px;margin-bottom:16px}
-  .am-documents-only .am-docs-ui-only .am-docs-tray{max-height:176px;max-width:100%}
-  .am-documents-only .am-docs-ui-only .am-doc-thumb{flex-basis:104px;width:104px;min-height:136px}
-  .am-documents-only .am-docs-ui-only .am-doc-thumb-preview{height:94px;flex-basis:94px}
-  .am-documents-only .am-docs-ui-only .am-docs-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-  .am-documents-only .am-docs-ui-only .am-docs-box{padding:10px}
-  .am-documents-only .am-docs-ui-only .am-docs-box h3{font-size:12px;min-height:34px}
-}
-@media(max-width:380px){
-  .am-documents-only .am-docs-ui-only .am-docs-grid{grid-template-columns:1fr}
-}
-</style>
-
-
-<style id="am-extension-update-compact-polish">
-#settingsExtension .am-extension-update-card{
-  flex:1 1 520px;min-width:300px;max-width:760px;margin:0;padding:10px 12px;
-  border:1px solid #d9e3ed;border-radius:9px;background:#f8fafc;
-  display:flex;flex-direction:column;gap:8px;box-sizing:border-box
-}
-#settingsExtension .am-extension-version-line{
-  display:flex;align-items:center;gap:9px;flex-wrap:nowrap;min-height:22px;
-  color:#61748a;font-size:11px;white-space:nowrap
-}
-#settingsExtension .am-extension-version-line b{color:#243b53;font-size:12px;font-weight:700}
-#settingsExtension .am-extension-separator{color:#a0adba}
-#settingsExtension .am-extension-action-line{
-  display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-height:34px
-}
-#settingsExtension #amExtensionUpdateStatus{
-  flex:1 1 135px;min-width:110px;max-width:220px;min-height:16px;max-height:28px;overflow:hidden;
-  color:#526988;font-size:11px;line-height:1.3;white-space:normal
-}
-#settingsExtension #amCheckExtensionUpdateBtn,
-#settingsExtension #downloadVahanExtensionZip{
-  min-height:32px;padding:7px 11px;border-radius:6px;font-size:11px;
-  line-height:1.2;white-space:nowrap;text-decoration:none
-}
-#settingsExtension .am-extension-release-notes{
-  display:none;font-size:10px;line-height:1.3;color:#718198;
-  max-height:26px;overflow:hidden
-}
-#settingsExtension .am-extension-download-status{
-  display:block;min-height:13px;max-height:14px;overflow:hidden;font-size:10px;line-height:1.3;color:#718198
-}
-#settingsExtension .setting-row:has(#amExtensionVersionPanel){align-items:center;gap:14px}
-@media(max-width:700px){
-  #settingsExtension .am-extension-update-card{flex-basis:100%;min-width:0;max-width:none}
-  #settingsExtension .am-extension-action-line{gap:6px}
-  #settingsExtension #amExtensionUpdateStatus{flex-basis:100%;max-width:none}
-}
-@media(max-width:420px){
-  #settingsExtension .am-extension-version-line{gap:6px;font-size:10px}
-  #settingsExtension .am-extension-version-line b{font-size:11px}
-  #settingsExtension #amCheckExtensionUpdateBtn,
-  #settingsExtension #downloadVahanExtensionZip{flex:1 1 auto;text-align:center;justify-content:center}
-}
-</style>
-
-
-<style id="am-extension-premium-layout-v2">
-/* Premium, software-matched extension update panel */
-#settingsExtension .setting-row:has(#amExtensionVersionPanel){
-  display:grid!important;
-  grid-template-columns:minmax(180px,230px) minmax(0,1fr)!important;
-  align-items:start!important;gap:16px!important
-}
-#settingsExtension .setting-row:has(#amExtensionVersionPanel)>div:first-child{
-  padding:8px 4px 0 0;max-width:none!important;min-width:0!important
-}
-#settingsExtension .am-extension-update-card{
-  width:100%;max-width:none!important;min-width:0!important;flex:none!important;
-  margin:0!important;padding:14px 16px!important;box-sizing:border-box;
-  display:flex!important;flex-direction:column!important;align-items:stretch!important;
-  gap:11px!important;border:1px solid #dce5ef!important;border-radius:11px!important;
-  background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%)!important;
-  box-shadow:0 2px 7px rgba(28,52,78,.045)
-}
-#settingsExtension .am-extension-version-line{
-  display:flex!important;align-items:center!important;justify-content:flex-start!important;
-  gap:10px!important;flex-wrap:wrap!important;white-space:normal!important;
-  min-height:25px;padding-bottom:9px;border-bottom:1px solid #e9eef4;
-  color:#718198!important;font-size:11px!important
-}
-#settingsExtension .am-extension-version-line b{
-  display:inline-flex;align-items:center;min-height:23px;padding:3px 8px;
-  border:1px solid #e1e8f0;border-radius:6px;background:#f5f8fb;
-  color:#263f59!important;font-size:12px!important;font-weight:700
-}
-#settingsExtension .am-extension-separator{color:#a6b2bf!important}
-#settingsExtension .am-extension-action-line{
-  display:flex!important;flex-direction:column!important;align-items:stretch!important;
-  justify-content:flex-start!important;gap:9px!important;min-height:0!important
-}
-#settingsExtension #amExtensionUpdateStatus{
-  display:block!important;flex:0 0 auto!important;width:100%!important;max-width:none!important;
-  min-width:0!important;min-height:18px!important;max-height:none!important;
-  overflow:visible!important;white-space:normal!important;overflow-wrap:anywhere!important;
-  color:#536b84!important;font-size:11px!important;line-height:1.45!important
-}
-#settingsExtension .am-extension-action-line:after{
-  content:"";display:block;order:2
-}
-#settingsExtension #amCheckExtensionUpdateBtn,
-#settingsExtension #downloadVahanExtensionZip{
-  display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  flex:0 0 auto!important;min-width:148px;min-height:35px!important;
-  margin:0!important;padding:8px 14px!important;border-radius:7px!important;
-  font-size:11px!important;font-weight:600!important;line-height:1.2!important;
-  white-space:nowrap!important;text-decoration:none!important;box-sizing:border-box
-}
-#settingsExtension .am-extension-action-line{
-  display:grid!important;grid-template-columns:1fr!important;gap:9px!important
-}
-#settingsExtension #amCheckExtensionUpdateBtn,
-#settingsExtension #downloadVahanExtensionZip{width:100%!important}
-#settingsExtension .am-extension-release-notes{
-  display:none!important
-}
-#settingsExtension .am-extension-download-status{
-  display:block!important;width:100%;min-height:14px;max-height:none!important;
-  overflow:visible!important;padding-top:8px;border-top:1px solid #edf1f5;
-  color:#7b8b9c!important;font-size:10px!important;line-height:1.4!important;
-  overflow-wrap:anywhere
-}
-@media(max-width:760px){
-  #settingsExtension .setting-row:has(#amExtensionVersionPanel){
-    grid-template-columns:minmax(0,1fr)!important;gap:9px!important
-  }
-  #settingsExtension .setting-row:has(#amExtensionVersionPanel)>div:first-child{
-    padding:0!important
-  }
-}
-</style>
-
-
-<style id="am-docs-premium-thumbnail-v3">
-/* Premium document tray: crisp rectangular preview cards, no circular thumbnail treatment */
-.am-docs-ui-only #amDocsThumbTray{
-  display:flex!important;align-items:stretch!important;gap:12px!important;
-  min-height:0!important;max-height:190px!important;padding:12px 3px 14px!important;
-  overflow-x:auto!important;overflow-y:hidden!important;
-  scroll-snap-type:x proximity!important;overscroll-behavior-x:contain!important
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb{
-  position:relative!important;display:flex!important;flex:0 0 116px!important;
-  flex-direction:column!important;align-items:stretch!important;gap:0!important;
-  width:116px!important;min-width:116px!important;min-height:148px!important;
-  padding:8px!important;margin:0!important;box-sizing:border-box!important;
-  border:1px solid #d8e2ec!important;border-radius:9px!important;
-  background:#fff!important;color:#334b63!important;text-align:left!important;
-  box-shadow:0 2px 7px rgba(25,55,85,.055)!important;
-  scroll-snap-align:start!important;overflow:hidden!important
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb:hover{
-  border-color:#9db9d5!important;box-shadow:0 4px 12px rgba(25,55,85,.10)!important;
-  transform:translateY(-1px)
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb:focus{
-  outline:2px solid #3b82c4!important;outline-offset:2px!important
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb.is-assigned{
-  opacity:1!important;border-color:#a8cdb6!important;background:#f8fcf9!important
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview{
-  position:relative!important;display:flex!important;align-items:center!important;
-  justify-content:center!important;width:100%!important;height:102px!important;
-  min-height:102px!important;flex:0 0 102px!important;box-sizing:border-box!important;
-  margin:0 0 8px!important;padding:7px!important;overflow:hidden!important;
-  border:1px solid #e3eaf1!important;border-radius:5px!important;
-  background:linear-gradient(180deg,#f8fafc 0%,#eef3f8 100%)!important
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview img{
-  display:block!important;width:100%!important;height:100%!important;
-  max-width:100%!important;max-height:100%!important;object-fit:contain!important;
-  object-position:center!important;border:0!important;border-radius:2px!important;
-  background:#fff!important
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview .pdf-mark{
-  position:relative!important;display:flex!important;align-items:center!important;
-  justify-content:center!important;width:54px!important;height:70px!important;
-  box-sizing:border-box!important;margin:0!important;padding:0 3px 0!important;
-  border:1px solid #d8e1eb!important;border-radius:3px!important;
-  background:#fff!important;color:#c74646!important;
-  box-shadow:0 2px 5px rgba(35,55,75,.10)!important;
-  font-size:13px!important;font-weight:800!important;letter-spacing:.35px!important
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview .pdf-mark:before{
-  content:"";position:absolute;left:0;right:0;top:0;height:5px;
-  background:#c74646;border-radius:2px 2px 0 0
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview .pdf-mark:after{
-  content:"";position:absolute;left:9px;right:9px;bottom:12px;height:1px;
-  background:#e5eaf0;box-shadow:0 -6px 0 #e5eaf0
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb-name{
-  display:block!important;width:100%!important;min-width:0!important;
-  margin:0!important;padding:0 1px!important;color:#435b73!important;
-  font-size:10px!important;font-weight:600!important;line-height:1.35!important;
-  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
-  text-align:left!important
-}
-.am-docs-ui-only #amDocsThumbTray .am-doc-thumb.is-assigned:after{
-  content:"Assigned";position:absolute;right:5px;top:5px;z-index:2;
-  padding:2px 5px;border-radius:4px;background:#e8f5ec;color:#28734a;
-  font-size:8px;font-weight:700;line-height:1.2
-}
-@media(max-width:560px){
-  .am-docs-ui-only #amDocsThumbTray{max-height:176px!important;gap:9px!important}
-  .am-docs-ui-only #amDocsThumbTray .am-doc-thumb{
-    flex-basis:104px!important;width:104px!important;min-width:104px!important;
-    min-height:136px!important;padding:7px!important
-  }
-  .am-docs-ui-only #amDocsThumbTray .am-doc-thumb-preview{
-    height:92px!important;min-height:92px!important;flex-basis:92px!important
-  }
-}
-</style>
-
-
-<style id="am-v1701-sidebar-docs-flat-polish">
-/* v1.7.01: remove the redundant identity card from the sidebar */
-.sidebar .sidebar-dealer{display:none!important}
-
-/* Flat, clean document upload thumbnails: remove any inherited circular outlines */
-.am-documents-only .am-docs-ui-only .am-doc-thumb{
-  border:1px solid #e1e7ee!important;border-radius:8px!important;
-  background:#fff!important;box-shadow:none!important;transform:none!important;
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-preview{
-  width:100%!important;height:88px!important;min-height:88px!important;flex:0 0 88px!important;
-  margin:0 0 7px!important;padding:0!important;box-sizing:border-box!important;
-  border:1px solid #e7ebf0!important;border-radius:6px!important;
-  background:#f7f9fb!important;box-shadow:none!important;outline:0!important;
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-preview::before,
-.am-documents-only .am-docs-ui-only .am-doc-thumb-preview::after,
-.am-documents-only .am-docs-ui-only .am-doc-thumb::before,
-.am-documents-only .am-docs-ui-only .am-doc-thumb::after{content:none!important;display:none!important}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-preview .pdf-mark{
-  width:54px!important;height:66px!important;box-sizing:border-box!important;
-  border:1px solid #e1e6ed!important;border-radius:4px!important;
-  background:#fff!important;color:#d65b5b!important;box-shadow:none!important;
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-preview .pdf-mark::before{
-  content:none!important;display:none!important
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-preview .pdf-mark::after{
-  content:""!important;display:block!important;position:absolute!important;
-  left:10px!important;right:10px!important;bottom:13px!important;height:1px!important;
-  background:#e8edf2!important;box-shadow:0 -6px 0 #e8edf2!important
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb-name{
-  font-size:10px!important;color:#526477!important;font-weight:500!important
-}
-.am-documents-only .am-docs-ui-only .am-doc-thumb.is-assigned{
-  border-color:#b9d7c2!important;background:#fbfefc!important;box-shadow:none!important
-}
-@media(max-width:560px){
- .am-documents-only .am-docs-ui-only .am-doc-thumb{flex-basis:84px!important;width:84px!important}
-}
-</style>
-
-<!-- Signature Generator Exact Font Rendering + Optional Gujarati Transliteration v1.7.10 -->
-
-
-
-</body></html>`;
-   if(previewOnly){target.document.open();target.document.write(formHtml);target.document.close();if(!stamp)setForm34Status('Preview opened, but no saved stamp was found for this Financer.',true);else setForm34Status('Saved Form 34 preview opened.');return;}
    try{
+     const pdfBlob=await buildForm34DirectPdf({
+       office:norm(record.assignedOffice||record.district||'________________'),
+       chassis:chassisFinal||'________________',
+       owner:owner||'________________',
+       finFull:finFull||fName||'________________',
+       financerName:norm(financer?.name||fName||'________________'),
+       loan:norm(record.loanAccountNo||record.loanAccountNumber||'________________'),
+       mobile:norm(record.mobile||'________________'),
+       date,
+       signature:ownerSignatureDataUrl,
+       stamp
+     });
+     const safeId=norm(reg||chassisFinal||recordId).replace(/[^a-z0-9_-]/gi,'-').replace(/-+/g,'-').slice(0,48)||'record';
+     const fileName='Form34-'+safeId+'.pdf',key=recordId+':form34';
      const dbReq=indexedDB.open('AM_VAHAN_DOCUMENTS_V1',2);
-     const db=await new Promise((resolve,reject)=>{dbReq.onupgradeneeded=()=>{if(!dbReq.result.objectStoreNames.contains('files'))dbReq.result.createObjectStore('files',{keyPath:'key'})};dbReq.onsuccess=()=>resolve(dbReq.result);dbReq.onerror=()=>reject(dbReq.error||new Error('Could not open local document storage'));});
-     const blob=new Blob([formHtml],{type:'text/html;charset=utf-8'}),fileName='form34-hypothecation.html',key=recordId+':form34';
-     await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put({key,recordId,documentKey:'form34',name:fileName,type:'text/html',size:blob.size,file:blob,updatedAt:new Date().toISOString()});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Could not save Form 34'));tx.onabort=()=>reject(tx.error||new Error('Form 34 save was cancelled'));});db.close();
-     const current=window.AMData?.getRecord?.(recordId);if(!current)throw new Error('Form 34 file saved locally, but customer record metadata was unavailable.');
-     const nextDocs={...(current.documents||{}),form34:{name:fileName,type:'text/html',size:blob.size,attachedOn:new Date().toISOString(),saved:true,source:'generated',stampIncluded:!!stamp,ownerSignatureIncluded:!!ownerSignatureDataUrl}};
-     const updated=window.AMData?.updateRecord?.(recordId,{documents:nextDocs});if(updated===false)throw new Error('Form 34 file was saved locally, but the record metadata could not be updated.');
-     const box=document.querySelector('[data-doc-box="form34"]');if(box){const st=box.querySelector('[data-doc-status="form34"]');if(st)st.textContent='Saved: '+fileName+(stamp?' · Financer stamp included':' · Stamp missing')+(ownerSignatureDataUrl?' · Owner signature included':' · Owner signature missing');const area=box.querySelector('[data-doc-assigned="form34"]');if(area)area.innerHTML='<div class="am-docs-assigned-chip"><b style="color:#166534">FORM 34</b><span>'+fileName+'</span></div>';}
+     const db=await new Promise((resolve,reject)=>{dbReq.onupgradeneeded=()=>{if(!dbReq.result.objectStoreNames.contains('files'))dbReq.result.createObjectStore('files',{keyPath:'key'});};dbReq.onsuccess=()=>resolve(dbReq.result);dbReq.onerror=()=>reject(dbReq.error||new Error('Could not open local document storage'));});
+     await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put({key,recordId,documentKey:'form34',name:fileName,type:'application/pdf',size:pdfBlob.size,file:pdfBlob,updatedAt:new Date().toISOString()});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Could not save Form 34 PDF'));tx.onabort=()=>reject(tx.error||new Error('Form 34 PDF save was cancelled'));});
+     db.close();
+     const current=window.AMData?.getRecord?.(recordId);if(!current)throw new Error('Form 34 PDF was saved locally, but customer record metadata was unavailable.');
+     const nextDocs={...(current.documents||{}),form34:{name:fileName,type:'application/pdf',size:pdfBlob.size,attachedOn:new Date().toISOString(),saved:true,source:'generated',stampIncluded:!!stamp,ownerSignatureIncluded:!!ownerSignatureDataUrl}};
+     const updated=window.AMData?.updateRecord?.(recordId,{documents:nextDocs});if(updated===false)throw new Error('Form 34 PDF was saved locally, but the record metadata could not be updated.');
+     const box=document.querySelector('[data-doc-box="form34"]');if(box){const st=box.querySelector('[data-doc-status="form34"]');if(st)st.textContent='Saved: '+fileName+(stamp?' · Financer stamp included':' · Stamp missing')+(ownerSignatureDataUrl?' · Owner signature included':' · Owner signature missing');const area=box.querySelector('[data-doc-assigned="form34"]');if(area)area.innerHTML='<div class="am-docs-assigned-chip"><b style="color:#166534">FORM 34 PDF</b><span>'+fileName+'</span></div>';}
      window.dispatchEvent(new CustomEvent('am-document-changed',{detail:{recordId,documentKey:'form34'}}));
-     setForm34Status((ownerSignatureDataUrl?'Owner signature included. ':'No saved owner signature. ')+(stamp?'Form 34 generated and saved to this customer’s document box. Use 👁️ to preview.':'Form 34 saved, but no saved stamp was found for this Financer. Check Financer Master.'),!stamp);
-     const state=document.querySelector('[data-form34-generated-state]');if(state)state.textContent=stamp?'Saved in Document Box · Financer stamp included':'Saved in Document Box · Financer stamp missing';
-   }catch(err){setForm34Status(err?.message||'Could not save Form 34 to Document Box.',true);}
+     setForm34Status((ownerSignatureDataUrl?'Owner signature included. ':'No saved owner signature. ')+(stamp?'Form 34 PDF generated directly and saved to this customer’s Document Box.':'Form 34 PDF generated directly and saved, but no saved stamp was found for this Financer. Check Financer Master.'),!stamp);
+     const state=document.querySelector('[data-form34-generated-state]');if(state)state.textContent=stamp?'PDF saved in Document Box · Financer stamp included':'PDF saved in Document Box · Financer stamp missing';
+     if(previewOnly)openForm34InDocumentViewer(pdfBlob,fileName);
+   }catch(err){setForm34Status(err?.message||'Could not generate Form 34 PDF.',true);}
+
  }
- function openForm34InDocumentViewer(html,fileName='form34-hypothecation.html'){
+ function openForm34InDocumentViewer(pdfBlob,fileName='Form34.pdf'){
    const viewer=document.getElementById('amDocumentViewer'),body=document.getElementById('amDocumentViewerBody'),title=document.getElementById('amDocumentViewerTitle');
    if(!viewer||!body){setForm34Status('Document Viewer is unavailable on this page.',true);return false;}
-   title.textContent='Form 34 — '+fileName;
-   body.innerHTML='';
-   const frame=document.createElement('iframe');frame.className='am-document-frame';frame.title='Form 34 Preview';frame.setAttribute('sandbox','allow-scripts allow-modals');frame.srcdoc=html;body.appendChild(frame);
+   if(!(pdfBlob instanceof Blob)||pdfBlob.type!=='application/pdf'){setForm34Status('Saved Form 34 is not a PDF file.',true);return false;}
+   if(window.__amForm34PdfUrl)URL.revokeObjectURL(window.__amForm34PdfUrl);
+   const pdfUrl=URL.createObjectURL(pdfBlob);window.__amForm34PdfUrl=pdfUrl;
+   title.textContent='Form 34 — '+fileName;body.innerHTML='';
+   const frame=document.createElement('iframe');frame.className='am-document-frame';frame.title='Form 34 PDF Preview';frame.setAttribute('type','application/pdf');frame.src=pdfUrl;body.appendChild(frame);
    viewer.classList.add('show');viewer.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
    const openBtn=document.getElementById('amDocumentViewerOpen'),downloadBtn=document.getElementById('amDocumentViewerDownload');
-   if(openBtn)openBtn.onclick=()=>{const w=window.open('','_blank');if(!w){setForm34Status('Browser blocked the new tab. Use Download or allow pop-ups.',true);return;}w.document.open();w.document.write(html);w.document.close();};
-   if(downloadBtn)downloadBtn.onclick=()=>{const w=window.open('','_blank');if(!w){setForm34Status('Browser blocked the PDF window. Allow pop-ups, then tap Download PDF again.',true);return;}const pdfTitle=String(fileName||'form34-hypothecation').replace(/\.html?$/i,'').replace(/[^a-z0-9 _-]/gi,'').trim()||'form34-hypothecation';w.document.open();w.document.write(html.replace(/<title>[\s\S]*?<\/title>/i,'<title>'+pdfTitle+'.pdf</title>'));w.document.close();w.focus();const printPdf=()=>{try{w.print();}catch(err){setForm34Status('Use the browser Print menu and choose Save as PDF.',true);}};if(w.document.readyState==='complete')setTimeout(printPdf,350);else w.addEventListener('load',()=>setTimeout(printPdf,350),{once:true});setForm34Status('PDF export opened. In the print dialog, choose Save as PDF.');};
-   window.__amCloseDocumentViewer=()=>{viewer.classList.remove('show');viewer.setAttribute('aria-hidden','true');body.innerHTML='';document.body.style.overflow='';};
-   setForm34Status('Saved Form 34 opened in Document Viewer.');return true;
+   if(openBtn)openBtn.onclick=()=>{const w=window.open(pdfUrl,'_blank','noopener');if(!w)setForm34Status('Browser blocked the PDF tab. Use Download PDF instead.',true);};
+   if(downloadBtn)downloadBtn.onclick=()=>{const a=document.createElement('a');a.href=pdfUrl;a.download=fileName||'Form34.pdf';document.body.appendChild(a);a.click();a.remove();setForm34Status('Form 34 PDF download started.');};
+   window.__amCloseDocumentViewer=()=>{viewer.classList.remove('show');viewer.setAttribute('aria-hidden','true');body.innerHTML='';document.body.style.overflow='';if(window.__amForm34PdfUrl){URL.revokeObjectURL(window.__amForm34PdfUrl);window.__amForm34PdfUrl='';}};
+   setForm34Status('Saved Form 34 PDF opened in Document Viewer.');return true;
  }
  async function viewSavedForm34(){
    const recordId=String(window.__amSavedDocsRecordId||window.__amCurrentCustomerRecordId||'');if(!recordId){setForm34Status('Select a customer record using Customer Details → Documents, then try again.',true);return;}window.__amSavedDocsRecordId=recordId;
    try{const req=indexedDB.open('AM_VAHAN_DOCUMENTS_V1',2);const db=await new Promise((resolve,reject)=>{req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files',{keyPath:'key'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Could not open document storage'));});
    const item=await new Promise((resolve,reject)=>{const tx=db.transaction('files','readonly'),r=tx.objectStore('files').get(recordId+':form34');r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error||new Error('Could not read saved Form 34'));});db.close();
    if(!item||!item.file){setForm34Status('No saved Form 34 found. Click Generate Form 34 first.',true);return;}
-   const html=await item.file.text();openForm34InDocumentViewer(html,item.name||'form34-hypothecation.html');
+   if(item.type==='application/pdf'||item.file.type==='application/pdf'){openForm34InDocumentViewer(item.file,item.name||'Form34.pdf');return;}
+   setForm34Status('This is an older HTML Form 34. Generate Form 34 again to replace it with a direct PDF.',true);
    }catch(err){setForm34Status(err?.message||'Could not open saved Form 34.',true);}
  }
  function setForm34Status(message,isError){const state=document.querySelector('[data-form34-generated-state]');if(state){state.textContent=message;state.style.display='block';state.style.color=isError?'#b91c1c':'#166534';}}
