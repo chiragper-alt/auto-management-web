@@ -1251,6 +1251,52 @@ html body.am-auth-ready .app-shell{visibility:visible!important;opacity:1!import
 }
 </style>
 
+
+<style id="am-v1723-modern-rounded-rect-controls">
+/* Global control refresh: replace capsule/pill controls with compact horizontal rounded rectangles */
+:root{
+  --am-ui-radius-control:8px;
+  --am-ui-radius-field:8px;
+}
+button:not(.toggle):not([role="switch"]):not(.am-doc-remove-x):not(.icon-button),
+input[type="button"],input[type="submit"],input[type="reset"],
+a.btn,a.button,.btn,.primary-btn,.btn-primary,.btn-secondary,
+.master-action,.master-action.import-link,
+.tabs button,.settings-nav button,
+.search-box,.search-field,.master-search-wrap input,
+input[type="search"],input[type="text"],input[type="email"],
+input[type="tel"],input[type="number"],input[type="date"],
+input[type="url"],input[type="password"],select,textarea,
+.form-control{
+  border-radius:8px!important;
+}
+button:not(.toggle):not([role="switch"]):not(.am-doc-remove-x):not(.icon-button),
+input[type="button"],input[type="submit"],input[type="reset"],
+a.btn,a.button,.btn,.primary-btn,.btn-primary,.btn-secondary,
+.master-action,.master-action.import-link,
+.tabs button,.settings-nav button{
+  min-height:36px;
+  padding-left:14px!important;padding-right:14px!important;
+  white-space:nowrap;
+}
+.search-box{
+  min-height:38px!important;height:38px!important;
+  padding-left:11px!important;padding-right:11px!important;
+}
+input[type="search"],input[type="text"],input[type="email"],
+input[type="tel"],input[type="number"],input[type="date"],
+input[type="url"],input[type="password"],select,.form-control{
+  min-height:36px;
+}
+textarea{border-radius:8px!important}
+button:focus-visible,a.btn:focus-visible,.btn:focus-visible,
+input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:2px solid rgba(37,115,200,.45)!important;outline-offset:2px!important;
+}
+/* Keep genuinely circular interface elements and compact status indicators unchanged */
+.avatar,.icon-button,.toggle,[role="switch"],.am-doc-remove-x,
+.step>span,.metric-icon,.notification-dot{border-radius:50%!important}
+
 </head>
 <body>
 <div id="amGlobalLoader" aria-hidden="true"><div class="am-loader-card"><div class="am-spinner"></div><strong id="amLoaderTitle">Working…</strong><small id="amLoaderSub">Please wait</small></div></div>
@@ -1561,7 +1607,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const profile=document.querySelector(".admin-profile");
   if(profile){
-    const menu=document.createElement("div"); menu.className="profile-menu"; menu.innerHTML='<button type="button" data-admin-action="profile">Profile</button><button type="button" data-admin-action="workspace">Dealer Workspace</button><button type="button" data-admin-action="signout">Sign out</button>'; profile.appendChild(menu);
+    const menu=document.createElement("div"); menu.className="profile-menu"; menu.innerHTML='<button type="button" data-admin-action="workspace">Dealer Workspace</button><button type="button" data-admin-action="signout">Sign out</button>'; profile.appendChild(menu);
     profile.setAttribute('tabindex','0'); profile.setAttribute('role','button'); profile.setAttribute('aria-label','Admin menu');
     profile.addEventListener("click",e=>{e.stopPropagation();menu.classList.toggle("open")});
     profile.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();menu.classList.toggle('open')}});
@@ -1578,7 +1624,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const dlg=document.createElement('div');dlg.id='amAdminDialog';dlg.className='am-admin-overlay';dlg.innerHTML=`<section class="am-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="amAdminTitle"><header><h2 id="amAdminTitle">${title}</h2><button type="button" class="am-admin-close" aria-label="Close">×</button></header><form><div class="am-admin-fields">${body}</div><footer><button type="button" class="am-admin-cancel">Cancel</button><button type="submit" class="am-admin-save">Save Changes</button></footer></form></section>`;
       document.body.appendChild(dlg);const close=()=>dlg.remove();dlg.querySelector('.am-admin-close').onclick=close;dlg.querySelector('.am-admin-cancel').onclick=close;dlg.addEventListener('click',e=>{if(e.target===dlg)close()});dlg.querySelector('form').addEventListener('submit',async e=>{e.preventDefault();if(!workspace&&(cloudRole==='dealer'||cloudRole==='operator')){const payload={displayName:dlg.querySelector('[name="name"]')?.value.trim()||'',email:dlg.querySelector('[name="email"]')?.value.trim()||''};if(cloudRole==='dealer')payload.dealerCode=dlg.querySelector('[name="code"]')?.value.trim()||'';try{const r=await fetch('https://auto-management-auth-api.chirag-per.workers.dev/api/profile',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+auth.authToken},body:JSON.stringify(payload)});const out=await r.json().catch(()=>({}));if(!r.ok)throw new Error(out.error||'Profile update failed');notify(title+' updated on server');close();return}catch(err){notify(err.message||'Profile update failed');return}}fields.forEach(([k])=>put((workspace?'workspace-':'profile-')+k,dlg.querySelector(`[name="${k}"]`).value.trim()));if(workspace){const name=get('workspace-company','Shree Motors');const dealerField=document.getElementById('dealerNameField');if(dealerField){dealerField.value=name;dealerField.dispatchEvent(new Event('change',{bubbles:true}))}}else{const name=get('profile-name','Admin');const label=profile.querySelector('strong');if(label&&name)label.textContent=name;const avatar=profile.querySelector('.avatar');if(avatar&&name)avatar.textContent=name.trim().charAt(0).toUpperCase()}close();notify(title+' saved successfully');});
     }
-    menu.querySelectorAll('[data-admin-action]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();menu.classList.remove('open');const action=b.dataset.adminAction;if(action==='profile')openAdminDialog('profile');else if(action==='workspace')openAdminDialog('workspace');else{if(b.dataset.authSignout==='true'&&typeof window.__amAuthLogout==='function'){window.__amAuthLogout();return}const ok=window.confirm('Sign out of Auto Management on this browser? Your saved customer and vehicle records will not be deleted.');if(ok){if(typeof window.__amAuthLogout==='function')window.__amAuthLogout();else notify('Signed out. Your local records remain saved.');}}}));
+    menu.querySelectorAll('[data-admin-action]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();menu.classList.remove('open');const action=b.dataset.adminAction;if(action==='workspace')openAdminDialog('workspace');else if(action==='signout'){if(b.dataset.authSignout==='true'&&typeof window.__amAuthLogout==='function'){window.__amAuthLogout();return}const ok=window.confirm('Sign out of Auto Management on this browser? Your saved customer and vehicle records will not be deleted.');if(ok){if(typeof window.__amAuthLogout==='function')window.__amAuthLogout();else notify('Signed out. Your local records remain saved.');}}}));
     const savedName=get('profile-name','');if(savedName){const label=profile.querySelector('strong');if(label)label.textContent=savedName;const avatar=profile.querySelector('.avatar');if(avatar)avatar.textContent=savedName.trim().charAt(0).toUpperCase()}
   }
 });
