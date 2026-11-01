@@ -3708,6 +3708,7 @@ body.am-documents-only #vahanPageHead h1::before{content:none!important}
  }
 
  async function generateForm34(previewOnly){
+   const externalPdfTab=previewOnly?window.open('about:blank','_blank'):null;
    const recordId=String(window.__amSavedDocsRecordId||window.__amCurrentCustomerRecordId||'');
    if(!recordId){setForm34Status('Select a customer record using Customer Details → Documents, then try again.',true);return;}
    window.__amSavedDocsRecordId=recordId;
@@ -3790,35 +3791,31 @@ body.am-documents-only #vahanPageHead h1::before{content:none!important}
      window.dispatchEvent(new CustomEvent('am-document-changed',{detail:{recordId,documentKey:'form34'}}));
      setForm34Status((ownerSignatureDataUrl?'Owner signature included. ':'No saved owner signature. ')+(stamp?'Form 34 PDF generated directly and saved to this customer’s Document Box.':'Form 34 PDF generated directly and saved, but no saved stamp was found for this Financer. Check Financer Master.'),!stamp);
      const state=document.querySelector('[data-form34-generated-state]');if(state)state.textContent=stamp?'PDF saved in Document Box · Financer stamp included':'PDF saved in Document Box · Financer stamp missing';
-     if(previewOnly)openForm34InDocumentViewer(pdfBlob,fileName);
+     if(previewOnly)openForm34InDocumentViewer(pdfBlob,fileName,externalPdfTab);
    }catch(err){setForm34Status(err?.message||'Could not generate Form 34 PDF.',true);}
 
  }
- function openForm34InDocumentViewer(pdfBlob,fileName='Form34.pdf'){
-   const viewer=document.getElementById('amDocumentViewer'),body=document.getElementById('amDocumentViewerBody'),title=document.getElementById('amDocumentViewerTitle');
-   if(!viewer||!body){setForm34Status('Document Viewer is unavailable on this page.',true);return false;}
-   if(!(pdfBlob instanceof Blob)||pdfBlob.type!=='application/pdf'){setForm34Status('Saved Form 34 is not a PDF file.',true);return false;}
-   if(window.__amForm34PdfUrl)URL.revokeObjectURL(window.__amForm34PdfUrl);
-   const pdfUrl=URL.createObjectURL(pdfBlob);window.__amForm34PdfUrl=pdfUrl;
-   title.textContent='Form 34 — '+fileName;body.innerHTML='';
-   const frame=document.createElement('iframe');frame.className='am-document-frame';frame.title='Form 34 PDF Preview';frame.setAttribute('type','application/pdf');frame.src=pdfUrl;body.appendChild(frame);
-   viewer.classList.add('show');viewer.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
-   const openBtn=document.getElementById('amDocumentViewerOpen'),downloadBtn=document.getElementById('amDocumentViewerDownload');
-   if(openBtn)openBtn.onclick=()=>{const w=window.open(pdfUrl,'_blank','noopener');if(!w)setForm34Status('Browser blocked the PDF tab. Use Download PDF instead.',true);};
-   if(downloadBtn)downloadBtn.onclick=()=>{const a=document.createElement('a');a.href=pdfUrl;a.download=fileName||'Form34.pdf';document.body.appendChild(a);a.click();a.remove();setForm34Status('Form 34 PDF download started.');};
-   window.__amCloseDocumentViewer=()=>{viewer.classList.remove('show');viewer.setAttribute('aria-hidden','true');body.innerHTML='';document.body.style.overflow='';if(window.__amForm34PdfUrl){URL.revokeObjectURL(window.__amForm34PdfUrl);window.__amForm34PdfUrl='';}};
-   setForm34Status('Saved Form 34 PDF opened in Document Viewer.');return true;
- }
- async function viewSavedForm34(){
-   const recordId=String(window.__amSavedDocsRecordId||window.__amCurrentCustomerRecordId||'');if(!recordId){setForm34Status('Select a customer record using Customer Details → Documents, then try again.',true);return;}window.__amSavedDocsRecordId=recordId;
+ function openForm34InDocumentViewer(pdfBlob,fileName='Form34.pdf',externalTab=null){
+   if(!(pdfBlob instanceof Blob)||pdfBlob.type!=='application/pdf'){setForm34Status('Saved Form 34 is not a PDF file.',true);if(externalTab&&!externalTab.closed)externalTab.close();return false;}
+   const pdfUrl=URL.createObjectURL(pdfBlob);
+   window.__amExternalPdfUrls=window.__amExternalPdfUrls||[];
+   window.__amExternalPdfUrls.push(pdfUrl);
+   const tab=externalTab&&!externalTab.closed?externalTab:window.open('about:blank','_blank');
+   if(tab){tab.location.href=pdfUrl;setForm34Status('Form 34 PDF opened in a new browser tab. Use Chrome PDF controls or your computer’s default PDF reader.');return true;}
+   const a=document.createElement('a');a.href=pdfUrl;a.download=fileName||'Form34.pdf';document.body.appendChild(a);a.click();a.remove();
+   setForm34Status('Browser blocked the external PDF tab. The PDF download has been started.',true);return false;
+  }
+  async function viewSavedForm34(){
+   const externalPdfTab=window.open('about:blank','_blank');
+   const recordId=String(window.__amSavedDocsRecordId||window.__amCurrentCustomerRecordId||'');if(!recordId){if(externalPdfTab)externalPdfTab.close();setForm34Status('Select a customer record using Customer Details → Documents, then try again.',true);return;}window.__amSavedDocsRecordId=recordId;
    try{const req=indexedDB.open('AM_VAHAN_DOCUMENTS_V1',2);const db=await new Promise((resolve,reject)=>{req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files',{keyPath:'key'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Could not open document storage'));});
    const item=await new Promise((resolve,reject)=>{const tx=db.transaction('files','readonly'),r=tx.objectStore('files').get(recordId+':form34');r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error||new Error('Could not read saved Form 34'));});db.close();
-   if(!item||!item.file){setForm34Status('No saved Form 34 found. Click Generate Form 34 first.',true);return;}
-   if(item.type==='application/pdf'||item.file.type==='application/pdf'){openForm34InDocumentViewer(item.file,item.name||'Form34.pdf');return;}
-   setForm34Status('This is an older HTML Form 34. Generate Form 34 again to replace it with a direct PDF.',true);
-   }catch(err){setForm34Status(err?.message||'Could not open saved Form 34.',true);}
- }
- function setForm34Status(message,isError){const state=document.querySelector('[data-form34-generated-state]');if(state){state.textContent=message;state.style.display='block';state.style.color=isError?'#b91c1c':'#166534';}}
+   if(!item||!item.file){if(externalPdfTab)externalPdfTab.close();setForm34Status('No saved Form 34 found. Click Generate Form 34 first.',true);return;}
+   if(item.type==='application/pdf'||item.file.type==='application/pdf'){openForm34InDocumentViewer(item.file,item.name||'Form34.pdf',externalPdfTab);return;}
+   if(externalPdfTab)externalPdfTab.close();setForm34Status('This is an older HTML Form 34. Generate Form 34 again to replace it with a direct PDF.',true);
+   }catch(err){if(externalPdfTab&&!externalPdfTab.closed)externalPdfTab.close();setForm34Status(err?.message||'Could not open saved Form 34.',true);}
+  }
+  function setForm34Status(message,isError){const state=document.querySelector('[data-form34-generated-state]');if(state){state.textContent=message;state.style.display='block';state.style.color=isError?'#b91c1c':'#166534';}}
 
 
  function openUI(id){id=id||window.__amCurrentCustomerRecordId||window.__amSavedDocsRecordId||'';if(id){window.__amSavedDocsRecordId=String(id);window.__amViewingSavedDocuments=true;}document.body.classList.add('am-documents-only');if(typeof window.__amOpenPage==='function')window.__amOpenPage('VAHAN Automation');requestAnimationFrame(()=>{renderVisualOnly();requestAnimationFrame(renderVisualOnly)});}
