@@ -3649,15 +3649,14 @@ body.am-documents-only #vahanPageHead h1::before{content:none!important}
    paragraph('The certificate of registration together with the fee is enclosed.',{gap:16});
    const dateY=y+10, leftX=margin, rightX=W-margin-490;
    text('Date: '+(data.date||''),leftX,dateY+18,20);
-   const sigTop=dateY-65;
+   const sigTop=dateY-83; // v1.7.41: move owner signature slightly upward
    if(data.signature)add(`<image href="${data.signature}" x="${rightX+30}" y="${sigTop}" width="420" height="118" preserveAspectRatio="xMidYMid meet"/>`);
    text('Signature or thumb impression of registered owner',rightX+245,dateY+20,17,false,'middle');
    y=dateY+93;
    text('Date: '+(data.date||''),leftX,y+15,20);
-   // v1.7.40: reduce the stamp by approx. 3 mm in each dimension,
-   // shift it left and slightly down to separate it from the owner's signature.
-   const stampTop=y-88;
-   if(data.stamp)add(`<image href="${data.stamp}" x="${rightX+70}" y="${stampTop}" width="232" height="142" preserveAspectRatio="xMidYMid meet"/>`);
+   // v1.7.41: move stamp farther left and lower while retaining reduced size.
+   const stampTop=y-55;
+   if(data.stamp)add(`<image href="${data.stamp}" x="${rightX+35}" y="${stampTop}" width="232" height="142" preserveAspectRatio="xMidYMid meet"/>`);
    text('Signature of the financier',rightX+245,y+18,17,false,'middle');
    y+=75;
    paragraph('* Strike out whichever is inapplicable.',{size:18,lineHeight:23,gap:18});
