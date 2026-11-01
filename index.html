@@ -1123,6 +1123,43 @@ html body.am-auth-ready .app-shell{visibility:visible!important;opacity:1!import
 @media(max-width:1050px){.am-bill-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.am-bill-submit{grid-column:1/-1}}
 @media(max-width:650px){.am-bill-grid{grid-template-columns:1fr}.am-bill-submit{grid-column:auto}.module-card{padding:13px!important}#amMySubPaymentForm{grid-template-columns:1fr}#amMySubPaymentForm .full{grid-column:auto}#duDealerCreateForm .module-grid.cols-2{grid-template-columns:1fr}}
 </style>
+
+<style id="am-v1714-modern-document-x-global">
+/* Documents page: minimal X glyph, explicitly reset inherited global button styles */
+.am-docs-ui-only .am-doc-thumb{position:relative!important}
+.am-docs-ui-only .am-doc-thumb > button.am-doc-remove-x,
+.am-docs-ui-only button.am-doc-remove-x{
+  position:absolute!important;top:5px!important;right:5px!important;z-index:20!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  box-sizing:border-box!important;width:22px!important;height:22px!important;
+  min-width:22px!important;min-height:22px!important;max-width:22px!important;max-height:22px!important;
+  padding:0!important;margin:0!important;
+  border:0!important;border-radius:0!important;outline:0!important;
+  background:none!important;background-color:transparent!important;
+  box-shadow:none!important;text-shadow:none!important;
+  color:#e5484d!important;font-family:Arial,sans-serif!important;
+  font-size:21px!important;font-weight:500!important;line-height:22px!important;
+  text-align:center!important;text-decoration:none!important;
+  cursor:pointer!important;opacity:.85!important;
+  -webkit-appearance:none!important;appearance:none!important;
+}
+.am-docs-ui-only .am-doc-thumb > button.am-doc-remove-x:hover,
+.am-docs-ui-only button.am-doc-remove-x:hover{
+  background:none!important;background-color:transparent!important;
+  border:0!important;box-shadow:none!important;color:#c62828!important;
+  opacity:1!important;transform:scale(1.08);
+}
+.am-docs-ui-only .am-docs-assigned-chip{position:relative!important;padding-right:27px!important}
+.am-docs-ui-only button.am-doc-remove-x-card{
+  top:2px!important;right:3px!important;width:20px!important;height:20px!important;
+  min-width:20px!important;min-height:20px!important;max-width:20px!important;max-height:20px!important;
+  font-size:19px!important;line-height:20px!important;
+}
+.am-docs-ui-only button.am-doc-remove-x:focus-visible{
+  outline:1px solid #e5484d!important;outline-offset:1px!important;border-radius:2px!important;
+}
+</style>
+
 </head>
 <body>
 <div id="amGlobalLoader" aria-hidden="true"><div class="am-loader-card"><div class="am-spinner"></div><strong id="amLoaderTitle">Working…</strong><small id="amLoaderSub">Please wait</small></div></div>
@@ -4167,24 +4204,7 @@ input[type=checkbox],input[type=radio]{accent-color:#1769df}
 
 <!-- Signature Generator Exact Font Rendering + Optional Gujarati Transliteration v1.7.10 -->
 
-<style id="am-v1713-modern-customer-document-delete-x">
-/* Minimal modern delete control: glyph only, no circular or filled background */
-.am-docs-ui-only .am-doc-thumb{position:relative!important}
-.am-docs-ui-only .am-doc-remove-x{
- position:absolute!important;top:5px!important;right:5px!important;z-index:8!important;
- display:inline-flex!important;align-items:center!important;justify-content:center!important;
- width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;
- padding:0!important;margin:0!important;border:0!important;border-radius:0!important;
- background:transparent!important;box-shadow:none!important;
- color:#e5484d!important;font:500 21px/20px Arial,sans-serif!important;
- text-align:center!important;cursor:pointer!important;opacity:.78!important;
- -webkit-appearance:none!important;appearance:none!important;
-}
-.am-docs-ui-only .am-doc-remove-x:hover{background:transparent!important;color:#c62828!important;opacity:1!important;transform:scale(1.08)}
-.am-docs-ui-only .am-docs-assigned-chip{position:relative!important;padding-right:27px!important}
-.am-docs-ui-only .am-doc-remove-x-card{top:2px!important;right:3px!important;width:20px!important;height:20px!important;min-width:20px!important;min-height:20px!important;font-size:19px!important;line-height:19px!important}
-.am-docs-ui-only .am-doc-remove-x:focus-visible{outline:1px solid currentColor!important;outline-offset:1px!important;border-radius:2px!important}
-</style>
+
 
 </body></html>`;
    if(previewOnly){target.document.open();target.document.write(formHtml);target.document.close();if(!stamp)setForm34Status('Preview opened, but no saved stamp was found for this Financer.',true);else setForm34Status('Saved Form 34 preview opened.');return;}
