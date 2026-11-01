@@ -3654,8 +3654,10 @@ body.am-documents-only #vahanPageHead h1::before{content:none!important}
    text('Signature or thumb impression of registered owner',rightX+245,dateY+20,17,false,'middle');
    y=dateY+93;
    text('Date: '+(data.date||''),leftX,y+15,20);
-   const stampTop=y-112;
-   if(data.stamp)add(`<image href="${data.stamp}" x="${rightX+95}" y="${stampTop}" width="250" height="160" preserveAspectRatio="xMidYMid meet"/>`);
+   // v1.7.40: reduce the stamp by approx. 3 mm in each dimension,
+   // shift it left and slightly down to separate it from the owner's signature.
+   const stampTop=y-88;
+   if(data.stamp)add(`<image href="${data.stamp}" x="${rightX+70}" y="${stampTop}" width="232" height="142" preserveAspectRatio="xMidYMid meet"/>`);
    text('Signature of the financier',rightX+245,y+18,17,false,'middle');
    y+=75;
    paragraph('* Strike out whichever is inapplicable.',{size:18,lineHeight:23,gap:18});
