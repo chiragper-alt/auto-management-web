@@ -1251,52 +1251,6 @@ html body.am-auth-ready .app-shell{visibility:visible!important;opacity:1!import
 }
 </style>
 
-
-<style id="am-v1723-modern-rounded-rect-controls">
-/* Global control refresh: replace capsule/pill controls with compact horizontal rounded rectangles */
-:root{
-  --am-ui-radius-control:8px;
-  --am-ui-radius-field:8px;
-}
-button:not(.toggle):not([role="switch"]):not(.am-doc-remove-x):not(.icon-button),
-input[type="button"],input[type="submit"],input[type="reset"],
-a.btn,a.button,.btn,.primary-btn,.btn-primary,.btn-secondary,
-.master-action,.master-action.import-link,
-.tabs button,.settings-nav button,
-.search-box,.search-field,.master-search-wrap input,
-input[type="search"],input[type="text"],input[type="email"],
-input[type="tel"],input[type="number"],input[type="date"],
-input[type="url"],input[type="password"],select,textarea,
-.form-control{
-  border-radius:8px!important;
-}
-button:not(.toggle):not([role="switch"]):not(.am-doc-remove-x):not(.icon-button),
-input[type="button"],input[type="submit"],input[type="reset"],
-a.btn,a.button,.btn,.primary-btn,.btn-primary,.btn-secondary,
-.master-action,.master-action.import-link,
-.tabs button,.settings-nav button{
-  min-height:36px;
-  padding-left:14px!important;padding-right:14px!important;
-  white-space:nowrap;
-}
-.search-box{
-  min-height:38px!important;height:38px!important;
-  padding-left:11px!important;padding-right:11px!important;
-}
-input[type="search"],input[type="text"],input[type="email"],
-input[type="tel"],input[type="number"],input[type="date"],
-input[type="url"],input[type="password"],select,.form-control{
-  min-height:36px;
-}
-textarea{border-radius:8px!important}
-button:focus-visible,a.btn:focus-visible,.btn:focus-visible,
-input:focus-visible,select:focus-visible,textarea:focus-visible{
-  outline:2px solid rgba(37,115,200,.45)!important;outline-offset:2px!important;
-}
-/* Keep genuinely circular interface elements and compact status indicators unchanged */
-.avatar,.icon-button,.toggle,[role="switch"],.am-doc-remove-x,
-.step>span,.metric-icon,.notification-dot{border-radius:50%!important}
-
 </head>
 <body>
 <div id="amGlobalLoader" aria-hidden="true"><div class="am-loader-card"><div class="am-spinner"></div><strong id="amLoaderTitle">Working…</strong><small id="amLoaderSub">Please wait</small></div></div>
