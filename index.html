@@ -4171,6 +4171,93 @@ button:disabled,.btn:disabled,.primary-btn:disabled{opacity:.55;cursor:not-allow
 })();
 </script>
 
+
+<!-- v1.7.60: True thumbnail-row sticky controller; preserves the row's measured horizontal position. -->
+<style id="am-v1760-thumbnail-row-sticky">
+body.am-documents-only .am-docs-ui-only .am-docs-upload-card.am-thumb-fixed {
+  position: fixed !important;
+  margin: 0 !important;
+  z-index: 999 !important;
+  box-sizing: border-box !important;
+  max-width: none !important;
+}
+body.am-documents-only .am-docs-ui-only .am-docs-upload-card.am-thumb-fixed .am-docs-tray {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain !important;
+}
+</style>
+<script id="am-v1760-thumbnail-row-sticky-controller">
+(function(){
+  if(window.__amV1760ThumbStickyInstalled) return;
+  window.__amV1760ThumbStickyInstalled=true;
+  let card=null, spacer=null, host=null, raf=0, resizeObs=null, mutationObs=null;
+  const TOP=72;
+  function restore(){
+    if(!card) return;
+    card.classList.remove('am-thumb-fixed');
+    card.style.removeProperty('top'); card.style.removeProperty('left');
+    card.style.removeProperty('width'); card.style.removeProperty('right');
+    card.style.removeProperty('height');
+    if(spacer && spacer.parentNode) spacer.parentNode.removeChild(spacer);
+    spacer=null;
+  }
+  function bind(){
+    const next=document.querySelector('body.am-documents-only .am-docs-ui-only .am-docs-upload-card');
+    if(next===card) return;
+    restore(); card=next; host=card?.closest('.am-docs-ui-only')||null;
+    if(!card || !host) return;
+    spacer=document.createElement('div');
+    spacer.setAttribute('aria-hidden','true');
+    spacer.style.cssText='display:block;width:100%;height:0;margin:0;padding:0;border:0;pointer-events:none;';
+    card.parentNode.insertBefore(spacer,card);
+    schedule();
+  }
+  function update(){
+    raf=0;
+    if(!card || !card.isConnected || !spacer || !spacer.isConnected || !host || !host.isConnected) { bind(); return; }
+    const base=spacer.getBoundingClientRect();
+    const cardHeight=card.offsetHeight;
+    const hostRect=host.getBoundingClientRect();
+    const naturalTop=base.top;
+    const shouldFix=naturalTop<=TOP && hostRect.bottom>TOP+Math.min(cardHeight,40);
+    if(!shouldFix){
+      if(card.classList.contains('am-thumb-fixed')) restore();
+      return;
+    }
+    if(!card.classList.contains('am-thumb-fixed')){
+      const cs=getComputedStyle(card);
+      const mb=parseFloat(cs.marginBottom)||0;
+      spacer.style.height=(cardHeight+mb)+'px';
+      card.classList.add('am-thumb-fixed');
+    }
+    const liveBase=spacer.getBoundingClientRect();
+    const liveHost=host.getBoundingClientRect();
+    const width=liveBase.width || host.clientWidth;
+    const left=liveBase.left;
+    const maxTop=liveHost.bottom-cardHeight;
+    const top=Math.min(TOP,maxTop);
+    card.style.top=Math.max(0,top)+'px';
+    card.style.left=left+'px';
+    card.style.width=width+'px';
+    card.style.right='auto';
+    card.style.height='auto';
+  }
+  function schedule(){ if(!raf) raf=requestAnimationFrame(update); }
+  window.addEventListener('scroll',schedule,{passive:true,capture:true});
+  window.addEventListener('resize',schedule,{passive:true});
+  document.addEventListener('scroll',schedule,{passive:true,capture:true});
+  window.addEventListener('am-page-ready',()=>setTimeout(bind,0));
+  document.addEventListener('click',e=>{
+    if(e.target.closest('#recordSavedDocsBtn,.master-saved-docs,#vahanSavedDocs1,[data-page="Documents"]')) setTimeout(bind,30);
+  },true);
+  mutationObs=new MutationObserver(()=>{ if(document.body.classList.contains('am-documents-only')) bind(); else if(card) restore(); });
+  mutationObs.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind,{once:true}); else bind();
+  setTimeout(bind,250); setTimeout(bind,900);
+})();
+</script>
+
 </body>
 </html>
 
