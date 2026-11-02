@@ -3018,6 +3018,31 @@ function openPage(name){
       };
     } else if(step===3){
       const docs=[['customerSignature','Customer Signature *'],['form20','Form 20 *'],['form21','Form 21 — Sale Certificate *'],['form22','Form 22 — Roadworthiness Certificate *'],['form34','Form 34'],['insuranceCertificate','Insurance Certificate'],['identityProof','Identity Proof *'],['addressProof','Address Proof *'],['saleInvoice','Sale Invoice'],['manufacturerInvoice',"Manufacturer's Invoice *"],['dealerInspectionReport','Dealer Inspection Report *'],['disclaimer','Disclaimer *']];
+      // On every fresh Step-3 opening, hydrate card status from the actual local
+      // document binaries. Record metadata alone is not proof that a file exists.
+      const selectedId=String(selected?.id||'');
+      if(selectedId && window.__amVahanHydratedDocsRecordId!==selectedId && window.__amVahanHydratingDocsRecordId!==selectedId){
+        window.__amVahanHydratingDocsRecordId=selectedId;
+        root.innerHTML='<div class="module-card" style="padding:18px">Checking saved documents for this customer…</div>';
+        (async()=>{
+          let db;
+          try{
+            db=await new Promise((resolve,reject)=>{const req=indexedDB.open('AM_VAHAN_DOCUMENTS_V1',2);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files',{keyPath:'key'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Could not open local document database'));});
+            const rows=await new Promise((resolve,reject)=>{const tx=db.transaction('files','readonly');const req=tx.objectStore('files').getAll();req.onsuccess=()=>resolve((req.result||[]).filter(x=>x&&String(x.recordId)===selectedId&&x.file));req.onerror=()=>reject(req.error||new Error('Could not read local documents'));});
+            const next={...(selected?.documents||{})};
+            for(const row of rows){
+              const kind=String(row.documentKey||'');
+              if(!docs.some(([k])=>k===kind))continue;
+              const key=String(row.key||'');
+              if(!next[kind] || !next[kind].saved || !next[kind].name){next[kind]={...(next[kind]||{}),name:row.name||kind,type:row.type||row.file.type||'',size:row.size||row.file.size||0,attachedOn:row.updatedAt||next[kind]?.attachedOn||'',saved:true,storageKey:key};}
+            }
+            selected={...selected,documents:next};
+            window.AMData?.updateRecord?.(selectedId,{documents:next});
+          }catch(err){console.warn('[Auto Management] Saved document card hydration failed',err);}
+          finally{try{db?.close();}catch(e){} window.__amVahanHydratingDocsRecordId='';window.__amVahanHydratedDocsRecordId=selectedId;render();}
+        })();
+        return;
+      }
       const attached=selected?.documents||{};
       window.__amPendingDocumentFiles=window.__amPendingDocumentFiles||{};
       const pending=window.__amPendingDocumentFiles;
