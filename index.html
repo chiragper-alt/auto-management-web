@@ -4171,6 +4171,39 @@ button:disabled,.btn:disabled,.primary-btn:disabled{opacity:.55;cursor:not-allow
 })();
 </script>
 
+
+<style id="am-v1757-thumbnail-row-freeze">
+/* Keep the customer document thumbnail row pinned while the document list scrolls. */
+body.am-documents-only .am-docs-ui-only .am-docs-upload-card{position:-webkit-sticky!important;position:sticky!important;top:76px!important;z-index:500!important;align-self:start!important;background:rgba(255,255,255,.985)!important;backdrop-filter:blur(10px);}
+body.am-documents-only .am-docs-ui-only .am-docs-tray{overflow-x:auto!important;overflow-y:hidden!important;overscroll-behavior-x:contain!important;touch-action:pan-x pan-y!important;}
+@media(max-width:760px){body.am-documents-only .am-docs-ui-only .am-docs-upload-card{top:66px!important;}}
+</style>
+<script id="am-v1757-thumbnail-row-freeze-fix">
+(function(){
+ if(window.__amV1757ThumbnailFreezeInstalled)return;window.__amV1757ThumbnailFreezeInstalled=true;
+ function repair(){
+  if(!document.body.classList.contains('am-documents-only'))return;
+  const card=document.querySelector('body.am-documents-only .am-docs-ui-only .am-docs-upload-card');
+  if(!card)return;
+  let node=card.parentElement;
+  while(node&&node!==document.body){
+   const cs=getComputedStyle(node);
+   if(cs.overflowY!=='visible'&&cs.overflowY!=='clip')node.style.setProperty('overflow-y','visible','important');
+   if(cs.overflowX==='auto'||cs.overflowX==='scroll'||cs.overflowX==='hidden')node.style.setProperty('overflow-x','visible','important');
+   if(cs.contain&&cs.contain!=='none')node.style.setProperty('contain','none','important');
+   node=node.parentElement;
+  }
+  card.style.setProperty('position','sticky','important');
+  card.style.setProperty('top',window.matchMedia('(max-width: 760px)').matches?'66px':'76px','important');
+  card.style.setProperty('z-index','500','important');
+ }
+ window.addEventListener('am-page-ready',()=>requestAnimationFrame(repair));
+ window.addEventListener('resize',repair,{passive:true});
+ document.addEventListener('click',e=>{if(e.target.closest('#recordSavedDocsBtn,.master-saved-docs,#vahanSavedDocs1'))setTimeout(repair,80);});
+ new MutationObserver(()=>{if(document.body.classList.contains('am-documents-only'))requestAnimationFrame(repair);}).observe(document.body,{childList:true,subtree:true});
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',repair,{once:true});else repair();
+})();
+</script>
 </body>
 </html>
 
