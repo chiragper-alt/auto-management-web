@@ -4171,39 +4171,6 @@ button:disabled,.btn:disabled,.primary-btn:disabled{opacity:.55;cursor:not-allow
 })();
 </script>
 
-
-<style id="am-v1757-thumbnail-row-freeze">
-/* Keep the customer document thumbnail row pinned while the document list scrolls. */
-body.am-documents-only .am-docs-ui-only .am-docs-upload-card{position:-webkit-sticky!important;position:sticky!important;top:76px!important;z-index:500!important;align-self:start!important;background:rgba(255,255,255,.985)!important;backdrop-filter:blur(10px);}
-body.am-documents-only .am-docs-ui-only .am-docs-tray{overflow-x:auto!important;overflow-y:hidden!important;overscroll-behavior-x:contain!important;touch-action:pan-x pan-y!important;}
-@media(max-width:760px){body.am-documents-only .am-docs-ui-only .am-docs-upload-card{top:66px!important;}}
-</style>
-<script id="am-v1757-thumbnail-row-freeze-fix">
-(function(){
- if(window.__amV1757ThumbnailFreezeInstalled)return;window.__amV1757ThumbnailFreezeInstalled=true;
- function repair(){
-  if(!document.body.classList.contains('am-documents-only'))return;
-  const card=document.querySelector('body.am-documents-only .am-docs-ui-only .am-docs-upload-card');
-  if(!card)return;
-  let node=card.parentElement;
-  while(node&&node!==document.body){
-   const cs=getComputedStyle(node);
-   if(cs.overflowY!=='visible'&&cs.overflowY!=='clip')node.style.setProperty('overflow-y','visible','important');
-   if(cs.overflowX==='auto'||cs.overflowX==='scroll'||cs.overflowX==='hidden')node.style.setProperty('overflow-x','visible','important');
-   if(cs.contain&&cs.contain!=='none')node.style.setProperty('contain','none','important');
-   node=node.parentElement;
-  }
-  card.style.setProperty('position','sticky','important');
-  card.style.setProperty('top',window.matchMedia('(max-width: 760px)').matches?'66px':'76px','important');
-  card.style.setProperty('z-index','500','important');
- }
- window.addEventListener('am-page-ready',()=>requestAnimationFrame(repair));
- window.addEventListener('resize',repair,{passive:true});
- document.addEventListener('click',e=>{if(e.target.closest('#recordSavedDocsBtn,.master-saved-docs,#vahanSavedDocs1'))setTimeout(repair,80);});
- new MutationObserver(()=>{if(document.body.classList.contains('am-documents-only'))requestAnimationFrame(repair);}).observe(document.body,{childList:true,subtree:true});
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',repair,{once:true});else repair();
-})();
-</script>
 </body>
 </html>
 
@@ -4755,3 +4722,60 @@ body.am-documents-only #vahanPageHead h1{font-size:24px!important;margin:0!impor
 .am-docs-assigned-chip .am-doc-persisted-badge{display:inline-flex;align-items:center;gap:3px;color:#137a43;background:#eaf8ef;border:1px solid #bce7ca;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:700;white-space:nowrap}
 .am-docs-status{font-weight:600}
 </style>
+
+
+<!-- v1.7.58: robust sticky thumbnail panel fix -->
+<style id="am-v1758-thumbnail-panel-sticky-fix">
+/* The thumbnail strip must remain visible while the document cards scroll. */
+body.am-documents-only .am-docs-ui-only .am-docs-upload-card.am-thumb-panel-fixed{
+  position:fixed!important;top:72px!important;z-index:999!important;
+  box-sizing:border-box!important;margin:0!important;
+  background:rgba(255,255,255,.985)!important;
+  box-shadow:0 8px 24px rgba(25,55,85,.14)!important;
+}
+body.am-documents-only .am-docs-ui-only .am-docs-thumb-sticky-spacer{display:block!important;visibility:hidden!important;pointer-events:none!important;}
+@media(max-width:760px){body.am-documents-only .am-docs-ui-only .am-docs-upload-card.am-thumb-panel-fixed{top:62px!important}}
+</style>
+<script id="am-v1758-thumbnail-panel-sticky-controller">
+(function(){
+  if(window.__amThumbPanelStickyV1758)return;
+  window.__amThumbPanelStickyV1758=true;
+  let card=null,spacer=null,raf=0,resizeObserver=null;
+  const topOffset=()=>window.matchMedia('(max-width:760px)').matches?62:72;
+  function cleanup(){
+    if(card){card.classList.remove('am-thumb-panel-fixed');card.style.removeProperty('left');card.style.removeProperty('width');card.style.removeProperty('right');card.style.removeProperty('top');}
+    if(spacer){spacer.remove();spacer=null;}
+    card=null;
+    if(resizeObserver){resizeObserver.disconnect();resizeObserver=null;}
+  }
+  function schedule(){if(raf)return;raf=requestAnimationFrame(()=>{raf=0;update();});}
+  function update(){
+    const active=document.body.classList.contains('am-documents-only');
+    const found=active?document.querySelector('#page-content .am-docs-ui-only .am-docs-upload-card'):null;
+    if(!found){if(card)cleanup();return;}
+    if(card!==found){cleanup();card=found;spacer=document.createElement('div');spacer.className='am-docs-thumb-sticky-spacer';spacer.setAttribute('aria-hidden','true');spacer.style.display='none';card.parentNode.insertBefore(spacer,card);if('ResizeObserver'in window){resizeObserver=new ResizeObserver(schedule);resizeObserver.observe(card);}}
+    const threshold=topOffset();
+    const anchor=spacer||card;
+    const anchorRect=anchor.getBoundingClientRect();
+    const shouldFix=anchorRect.top<threshold;
+    if(shouldFix){
+      const rect=spacer.getBoundingClientRect();
+      spacer.style.display='block';spacer.style.height=card.offsetHeight+'px';
+      card.classList.add('am-thumb-panel-fixed');
+      card.style.left=rect.left+'px';card.style.width=rect.width+'px';card.style.right='auto';card.style.top=threshold+'px';
+    }else{
+      card.classList.remove('am-thumb-panel-fixed');
+      card.style.removeProperty('left');card.style.removeProperty('width');card.style.removeProperty('right');card.style.removeProperty('top');
+      spacer.style.display='none';spacer.style.height='0px';
+    }
+  }
+  window.addEventListener('scroll',schedule,true);
+  window.addEventListener('resize',schedule,{passive:true});
+  window.addEventListener('orientationchange',schedule,{passive:true});
+  window.addEventListener('am-page-ready',()=>setTimeout(schedule,0));
+  document.addEventListener('click',e=>{if(e.target.closest('#recordSavedDocsBtn,.master-saved-docs,#vahanSavedDocs1'))setTimeout(schedule,0);},true);
+  const mo=new MutationObserver(()=>{if(!document.body.classList.contains('am-documents-only')){if(card)cleanup();}else schedule();});
+  mo.observe(document.body,{attributes:true,attributeFilter:['class']});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
+})();
+</script>
