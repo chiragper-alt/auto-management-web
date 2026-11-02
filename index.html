@@ -4725,57 +4725,42 @@ body.am-documents-only #vahanPageHead h1{font-size:24px!important;margin:0!impor
 
 
 <!-- v1.7.58: robust sticky thumbnail panel fix -->
-<style id="am-v1758-thumbnail-panel-sticky-fix">
-/* The thumbnail strip must remain visible while the document cards scroll. */
-body.am-documents-only .am-docs-ui-only .am-docs-upload-card.am-thumb-panel-fixed{
-  position:fixed!important;top:72px!important;z-index:999!important;
-  box-sizing:border-box!important;margin:0!important;
-  background:rgba(255,255,255,.985)!important;
-  box-shadow:0 8px 24px rgba(25,55,85,.14)!important;
+
+
+<!-- v1.7.59: Keep the document upload/thumbnail panel sticky in its natural horizontal position. -->
+<style id="am-v1759-thumbnail-sticky-alignment-fix">
+body.am-documents-only #page-content,
+body.am-documents-only #page-content .page-view,
+body.am-documents-only #page-content .am-docs-ui-only,
+body.am-documents-only .main,
+body.am-documents-only .main-content {
+  overflow: visible !important;
+  contain: none !important;
+  transform: none !important;
 }
-body.am-documents-only .am-docs-ui-only .am-docs-thumb-sticky-spacer{display:block!important;visibility:hidden!important;pointer-events:none!important;}
-@media(max-width:760px){body.am-documents-only .am-docs-ui-only .am-docs-upload-card.am-thumb-panel-fixed{top:62px!important}}
+body.am-documents-only #page-content .am-docs-ui-only .am-docs-upload-card {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 72px !important;
+  left: auto !important;
+  right: auto !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  z-index: 120 !important;
+  box-sizing: border-box !important;
+  background: rgba(255,255,255,.985) !important;
+  align-self: stretch !important;
+}
+body.am-documents-only #page-content .am-docs-ui-only .am-docs-tray {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain !important;
+}
+@media(max-width:760px) {
+  body.am-documents-only #page-content .am-docs-ui-only .am-docs-upload-card { top: 62px !important; }
+}
 </style>
-<script id="am-v1758-thumbnail-panel-sticky-controller">
-(function(){
-  if(window.__amThumbPanelStickyV1758)return;
-  window.__amThumbPanelStickyV1758=true;
-  let card=null,spacer=null,raf=0,resizeObserver=null;
-  const topOffset=()=>window.matchMedia('(max-width:760px)').matches?62:72;
-  function cleanup(){
-    if(card){card.classList.remove('am-thumb-panel-fixed');card.style.removeProperty('left');card.style.removeProperty('width');card.style.removeProperty('right');card.style.removeProperty('top');}
-    if(spacer){spacer.remove();spacer=null;}
-    card=null;
-    if(resizeObserver){resizeObserver.disconnect();resizeObserver=null;}
-  }
-  function schedule(){if(raf)return;raf=requestAnimationFrame(()=>{raf=0;update();});}
-  function update(){
-    const active=document.body.classList.contains('am-documents-only');
-    const found=active?document.querySelector('#page-content .am-docs-ui-only .am-docs-upload-card'):null;
-    if(!found){if(card)cleanup();return;}
-    if(card!==found){cleanup();card=found;spacer=document.createElement('div');spacer.className='am-docs-thumb-sticky-spacer';spacer.setAttribute('aria-hidden','true');spacer.style.display='none';card.parentNode.insertBefore(spacer,card);if('ResizeObserver'in window){resizeObserver=new ResizeObserver(schedule);resizeObserver.observe(card);}}
-    const threshold=topOffset();
-    const anchor=spacer||card;
-    const anchorRect=anchor.getBoundingClientRect();
-    const shouldFix=anchorRect.top<threshold;
-    if(shouldFix){
-      const rect=spacer.getBoundingClientRect();
-      spacer.style.display='block';spacer.style.height=card.offsetHeight+'px';
-      card.classList.add('am-thumb-panel-fixed');
-      card.style.left=rect.left+'px';card.style.width=rect.width+'px';card.style.right='auto';card.style.top=threshold+'px';
-    }else{
-      card.classList.remove('am-thumb-panel-fixed');
-      card.style.removeProperty('left');card.style.removeProperty('width');card.style.removeProperty('right');card.style.removeProperty('top');
-      spacer.style.display='none';spacer.style.height='0px';
-    }
-  }
-  window.addEventListener('scroll',schedule,true);
-  window.addEventListener('resize',schedule,{passive:true});
-  window.addEventListener('orientationchange',schedule,{passive:true});
-  window.addEventListener('am-page-ready',()=>setTimeout(schedule,0));
-  document.addEventListener('click',e=>{if(e.target.closest('#recordSavedDocsBtn,.master-saved-docs,#vahanSavedDocs1'))setTimeout(schedule,0);},true);
-  const mo=new MutationObserver(()=>{if(!document.body.classList.contains('am-documents-only')){if(card)cleanup();}else schedule();});
-  mo.observe(document.body,{attributes:true,attributeFilter:['class']});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
-})();
-</script>
